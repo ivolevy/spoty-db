@@ -347,25 +347,29 @@
             const btn = document.getElementById('crawl-btn');
             const status = document.getElementById('status');
             
+            if (!confirm('¿Ejecutar el crawler ahora? Esto puede tardar varios minutos.')) {
+                return;
+            }
+            
             btn.disabled = true;
-            status.textContent = '⏳ Ejecutando crawler...';
+            status.textContent = '⏳ Ejecutando crawler... Esto puede tardar varios minutos.';
             
             try {
-                const response = await fetch('/api/cron', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': 'Bearer ' + (prompt('Ingresa CRON_SECRET (si está configurado):') || '')
-                    }
+                const response = await fetch('/api/trigger', {
+                    method: 'GET'
                 });
                 
+                const data = await response.json();
+                
                 if (response.ok) {
-                    status.textContent = '✅ Crawler iniciado. Revisa los logs en Vercel.';
+                    status.textContent = '✅ ' + data.message + ' Revisa los logs en Vercel para ver el progreso.';
                     setTimeout(() => {
                         status.textContent = '';
-                        refreshData();
-                    }, 3000);
+                        // Actualizar datos después de un minuto
+                        setTimeout(() => refreshData(), 60000);
+                    }, 5000);
                 } else {
-                    status.textContent = '❌ Error: ' + response.statusText;
+                    status.textContent = '❌ Error: ' + (data.error || response.statusText);
                 }
             } catch (error) {
                 status.textContent = '❌ Error: ' + error.message;

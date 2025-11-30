@@ -12,6 +12,9 @@
   "functions": {
     "api/cron.ts": {
       "maxDuration": 300
+    },
+    "api/trigger.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
