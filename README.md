@@ -2,6 +2,8 @@
 
 Sistema autónomo para rastrear, extraer y almacenar todas las canciones del sello discográfico "Dale Play Records" desde la API de Spotify.
 
+> Versión 1.0.1 - Deploy en Vercel
+
 ## 🎯 Características
 
 - ✅ Búsqueda inteligente de canciones por label con reconocimiento de variantes
