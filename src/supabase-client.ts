@@ -90,10 +90,18 @@ export class SupabaseClientWrapper {
   async getExistingSpotifyIds(): Promise<Set<string>> {
     try {
       console.log('🔗 Conectando a Supabase...');
-      const { data, error } = await this.client
+      
+      // Timeout de 10 segundos
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout: La consulta a Supabase tardó más de 10 segundos')), 10000);
+      });
+      
+      const queryPromise = this.client
         .from('label_tracks')
         .select('spotify_id')
-        .limit(10000); // Limitar para evitar timeouts con tablas muy grandes
+        .limit(10000);
+
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('❌ Error de Supabase:', error);
@@ -101,10 +109,12 @@ export class SupabaseClientWrapper {
       }
 
       console.log(`📊 Recibidos ${data?.length || 0} IDs de Supabase`);
-      return new Set((data || []).map(row => row.spotify_id));
+      return new Set((data || []).map((row: any) => row.spotify_id));
     } catch (error: any) {
-      console.error('❌ Error completo en getExistingSpotifyIds:', error);
-      throw error;
+      console.error('❌ Error completo en getExistingSpotifyIds:', error.message);
+      // Si falla, retornar set vacío para que continúe
+      console.log('⚠️  Continuando sin deduplicación previa...');
+      return new Set();
     }
   }
 
