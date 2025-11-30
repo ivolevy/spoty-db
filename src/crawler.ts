@@ -36,11 +36,19 @@ export class SpotifyCrawler {
     console.log(`📅 Buscando tracks desde ${config.crawler.startYear}`);
     console.log(`🏷️  Label objetivo: "${config.crawler.labelSearchTerm}"`);
 
-    // Cargar IDs existentes para deduplicación
+    // Cargar IDs existentes para deduplicación (con timeout de 3 segundos)
     console.log('📊 Cargando tracks existentes de la base de datos...');
     try {
-      const existingIds = await this.supabaseClient.getExistingSpotifyIds();
-      this.processedIds = new Set(existingIds);
+      const timeoutPromise = new Promise<Set<string>>((resolve) => {
+        setTimeout(() => {
+          console.log('⏱️  Timeout: Continuando sin cargar IDs existentes (más rápido)');
+          resolve(new Set());
+        }, 3000);
+      });
+      
+      const queryPromise = this.supabaseClient.getExistingSpotifyIds();
+      
+      this.processedIds = await Promise.race([queryPromise, timeoutPromise]);
       console.log(`✅ ${this.processedIds.size} tracks ya existen en la base de datos`);
     } catch (error: any) {
       console.error('❌ Error cargando tracks existentes:', error.message);
