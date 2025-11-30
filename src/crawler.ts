@@ -36,65 +36,42 @@ export class SpotifyCrawler {
     console.log(`📅 Buscando tracks desde ${config.crawler.startYear}`);
     console.log(`🏷️  Label objetivo: "${config.crawler.labelSearchTerm}"`);
 
-    // Cargar IDs existentes para deduplicación
-    // En modo test, saltamos esto para ser más rápido
-    if (config.crawler.testMode) {
-      console.log('🧪 MODO TEST: Saltando carga de IDs existentes (más rápido)');
-      this.processedIds = new Set();
-    } else {
-      console.log('📊 Cargando tracks existentes de la base de datos...');
+    // Cargar IDs existentes para deduplicación (solo en modo normal)
+    if (!config.crawler.testMode) {
       try {
         const timeoutPromise = new Promise<Set<string>>((resolve) => {
-          setTimeout(() => {
-            console.log('⏱️  Timeout: Continuando sin cargar IDs existentes');
-            resolve(new Set());
-          }, 3000);
+          setTimeout(() => resolve(new Set()), 3000);
         });
-        
-        const queryPromise = this.supabaseClient.getExistingSpotifyIds();
-        
-        this.processedIds = await Promise.race([queryPromise, timeoutPromise]);
-        console.log(`✅ ${this.processedIds.size} tracks ya existen en la base de datos`);
+        this.processedIds = await Promise.race([
+          this.supabaseClient.getExistingSpotifyIds(),
+          timeoutPromise
+        ]);
       } catch (error: any) {
-        console.error('❌ Error cargando tracks existentes:', error.message);
-        console.log('⚠️  Continuando sin deduplicación previa...');
         this.processedIds = new Set();
       }
+    } else {
+      this.processedIds = new Set();
     }
 
     // Primero buscar por artistas conocidos (más eficiente)
     if (config.crawler.knownArtists.length > 0) {
-      console.log(`\n🎤 Buscando por ${config.crawler.knownArtists.length} artistas conocidos del sello...`);
       for (const artist of config.crawler.knownArtists) {
-        // Si ya alcanzamos el límite, parar
         if (this.stats.totalSaved >= this.maxTracksLimit) {
-          console.log(`\n⏹️  Límite alcanzado (${this.maxTracksLimit} tracks). Deteniendo búsqueda.`);
           break;
         }
-        
-        console.log(`\n🔍 Buscando tracks de: "${artist}"`);
         await this.searchByArtist(artist);
       }
     }
 
     // Luego hacer búsquedas generales (solo si NO está en modo test)
-    // En modo test solo buscamos por artistas conocidos para ser más rápido
     if (!config.crawler.testMode && this.stats.totalSaved < this.maxTracksLimit) {
-      console.log(`\n🔍 Búsquedas generales (para encontrar tracks adicionales)...`);
       const searchQueries = this.generateSearchQueries();
-
       for (const query of searchQueries) {
-        // Si ya alcanzamos el límite, parar
         if (this.stats.totalSaved >= this.maxTracksLimit) {
-          console.log(`\n⏹️  Límite alcanzado (${this.maxTracksLimit} tracks). Deteniendo búsqueda.`);
           break;
         }
-        
-        console.log(`\n🔍 Buscando: "${query}"`);
         await this.searchAndProcess(query);
       }
-    } else if (config.crawler.testMode) {
-      console.log(`\n🧪 MODO TEST: Solo búsqueda por artistas conocidos (sin búsquedas generales)`);
     }
 
     // Mostrar estadísticas finales
@@ -144,8 +121,6 @@ export class SpotifyCrawler {
     const maxResultsPerArtist = config.crawler.testMode ? 50 : 200;
     let hasMore = true;
 
-    console.log(`   🔄 Procesando artista "${artistName}" (máximo ${maxResultsPerArtist} tracks)...`);
-
     while (hasMore && offset < maxResultsPerArtist) {
       try {
         const query = `artist:"${artistName}"`;
@@ -182,18 +157,15 @@ export class SpotifyCrawler {
             // Guardar en Supabase
             await this.supabaseClient.upsertTracks(tracksToSave);
             this.stats.totalSaved += tracksToSave.length;
-            console.log(`   ✅ Guardados ${tracksToSave.length} tracks del label`);
+            console.log(`   ✅ ${tracksToSave.length} tracks guardados`);
 
             // Agregar a processedIds para evitar duplicados en esta sesión
             tracksToSave.forEach(t => this.processedIds.add(t.spotify_id));
             
             // Si alcanzamos el límite, parar
             if (this.stats.totalSaved >= this.maxTracksLimit) {
-              console.log(`   ⏹️  Límite de ${this.maxTracksLimit} tracks alcanzado.`);
               break;
             }
-          } else {
-            console.log(`   ℹ️  Ningún track de este artista coincide con el label`);
           }
         }
 
