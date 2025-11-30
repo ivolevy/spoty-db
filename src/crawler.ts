@@ -19,11 +19,13 @@ export class SpotifyCrawler {
     duplicates: 0,
     errors: 0,
   };
+  private maxTracksLimit: number;
 
   constructor() {
     this.spotifyClient = new SpotifyClient();
     this.supabaseClient = new SupabaseClientWrapper();
     this.trackProcessor = new TrackProcessor(this.spotifyClient);
+    this.maxTracksLimit = config.crawler.maxTracksToProcess;
   }
 
   /**
@@ -48,8 +50,18 @@ export class SpotifyCrawler {
 
     // Estrategias de búsqueda múltiples
     const searchQueries = this.generateSearchQueries();
+    
+    if (config.crawler.testMode) {
+      console.log('🧪 MODO TEST ACTIVADO: Búsquedas limitadas y máximo', this.maxTracksLimit, 'tracks');
+    }
 
     for (const query of searchQueries) {
+      // Si ya alcanzamos el límite, parar
+      if (this.stats.totalSaved >= this.maxTracksLimit) {
+        console.log(`\n⏹️  Límite alcanzado (${this.maxTracksLimit} tracks). Deteniendo búsqueda.`);
+        break;
+      }
+      
       console.log(`\n🔍 Buscando: "${query}"`);
       await this.searchAndProcess(query);
     }
@@ -68,23 +80,20 @@ export class SpotifyCrawler {
     const currentYear = new Date().getFullYear();
     const queries: string[] = [];
 
+    // Modo test: solo 2 búsquedas simples
     if (config.crawler.testMode) {
-      // Modo prueba: solo búsquedas simples y últimos años
-      console.log('🧪 Modo TEST activado - búsqueda limitada');
       queries.push(`"${label}"`);
       queries.push(`year:${currentYear}`);
-      queries.push(`year:${currentYear - 1}`);
       return queries;
     }
 
     // Modo normal: búsquedas completas
-    // Estrategia 1: Buscar por términos del label en texto libre
     queries.push(`"${label}"`);
     queries.push(`"Dale Play Records"`);
     queries.push(`"DALE PLAY RECORDS"`);
     queries.push(`"DalePlay Records"`);
 
-    // Estrategia 2: Buscar solo en los últimos 3 años para eficiencia
+    // Buscar en los últimos 3 años
     const recentYears = Math.min(3, currentYear - config.crawler.startYear + 1);
     for (let i = 0; i < recentYears; i++) {
       const year = currentYear - i;
@@ -100,11 +109,10 @@ export class SpotifyCrawler {
   private async searchAndProcess(query: string): Promise<void> {
     let offset = 0;
     const limit = 50; // Máximo permitido por Spotify
-    const maxResultsPerQuery = config.crawler.testMode ? 100 : 1000; // Límite más bajo en modo test
+    const maxResultsPerQuery = 1000; // Límite para evitar búsquedas infinitas
     let hasMore = true;
-    const maxTracksToProcess = config.crawler.maxTracks > 0 ? config.crawler.maxTracks : Infinity;
 
-    while (hasMore && offset < maxResultsPerQuery && this.stats.totalSaved < maxTracksToProcess) {
+    while (hasMore && offset < maxResultsPerQuery) {
       try {
         const searchResult = await this.spotifyClient.searchTracks(query, limit, offset);
         const tracks = searchResult.tracks.items;
@@ -128,13 +136,27 @@ export class SpotifyCrawler {
           const processedTracks = await this.processTracks(newTracks);
 
           if (processedTracks.length > 0) {
+            // Limitar tracks si excede el máximo
+            let tracksToSave = processedTracks;
+            if (this.stats.totalSaved + processedTracks.length > this.maxTracksLimit) {
+              const remaining = this.maxTracksLimit - this.stats.totalSaved;
+              tracksToSave = processedTracks.slice(0, remaining);
+              console.log(`   ⚠️  Límite alcanzado. Guardando solo ${remaining} de ${processedTracks.length} tracks.`);
+            }
+            
             // Guardar en Supabase
-            await this.supabaseClient.upsertTracks(processedTracks);
-            this.stats.totalSaved += processedTracks.length;
-            console.log(`   ✅ Guardados ${processedTracks.length} tracks del label`);
+            await this.supabaseClient.upsertTracks(tracksToSave);
+            this.stats.totalSaved += tracksToSave.length;
+            console.log(`   ✅ Guardados ${tracksToSave.length} tracks del label`);
 
             // Agregar a processedIds para evitar duplicados en esta sesión
-            processedTracks.forEach(t => this.processedIds.add(t.spotify_id));
+            tracksToSave.forEach(t => this.processedIds.add(t.spotify_id));
+            
+            // Si alcanzamos el límite, parar
+            if (this.stats.totalSaved >= this.maxTracksLimit) {
+              console.log(`   ⏹️  Límite de ${this.maxTracksLimit} tracks alcanzado.`);
+              break;
+            }
           } else {
             console.log(`   ℹ️  Ningún track de estos coincide con el label`);
           }
