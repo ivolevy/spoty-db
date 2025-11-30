@@ -4,7 +4,7 @@
   "description": "Sistema para rastrear y almacenar canciones de Dale Play Records desde Spotify",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "echo 'Build skipped - Vercel handles TypeScript compilation'",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "crawl": "ts-node src/crawler.ts",
