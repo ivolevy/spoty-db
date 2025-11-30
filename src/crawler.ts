@@ -48,22 +48,40 @@ export class SpotifyCrawler {
       this.processedIds = new Set(); // Continuar con set vacío
     }
 
-    // Estrategias de búsqueda múltiples
-    const searchQueries = this.generateSearchQueries();
-    
-    if (config.crawler.testMode) {
-      console.log('🧪 MODO TEST ACTIVADO: Búsquedas limitadas y máximo', this.maxTracksLimit, 'tracks');
+    // Primero buscar por artistas conocidos (más eficiente)
+    if (config.crawler.knownArtists.length > 0) {
+      console.log(`\n🎤 Buscando por ${config.crawler.knownArtists.length} artistas conocidos del sello...`);
+      for (const artist of config.crawler.knownArtists) {
+        // Si ya alcanzamos el límite, parar
+        if (this.stats.totalSaved >= this.maxTracksLimit) {
+          console.log(`\n⏹️  Límite alcanzado (${this.maxTracksLimit} tracks). Deteniendo búsqueda.`);
+          break;
+        }
+        
+        console.log(`\n🔍 Buscando tracks de: "${artist}"`);
+        await this.searchByArtist(artist);
+      }
     }
 
-    for (const query of searchQueries) {
-      // Si ya alcanzamos el límite, parar
-      if (this.stats.totalSaved >= this.maxTracksLimit) {
-        console.log(`\n⏹️  Límite alcanzado (${this.maxTracksLimit} tracks). Deteniendo búsqueda.`);
-        break;
-      }
+    // Luego hacer búsquedas generales (por si hay artistas nuevos o tracks sin artista conocido)
+    if (this.stats.totalSaved < this.maxTracksLimit) {
+      console.log(`\n🔍 Búsquedas generales (para encontrar tracks adicionales)...`);
+      const searchQueries = this.generateSearchQueries();
       
-      console.log(`\n🔍 Buscando: "${query}"`);
-      await this.searchAndProcess(query);
+      if (config.crawler.testMode) {
+        console.log('🧪 MODO TEST ACTIVADO: Búsquedas limitadas');
+      }
+
+      for (const query of searchQueries) {
+        // Si ya alcanzamos el límite, parar
+        if (this.stats.totalSaved >= this.maxTracksLimit) {
+          console.log(`\n⏹️  Límite alcanzado (${this.maxTracksLimit} tracks). Deteniendo búsqueda.`);
+          break;
+        }
+        
+        console.log(`\n🔍 Buscando: "${query}"`);
+        await this.searchAndProcess(query);
+      }
     }
 
     // Mostrar estadísticas finales
@@ -101,6 +119,81 @@ export class SpotifyCrawler {
     }
 
     return queries;
+  }
+
+  /**
+   * Busca tracks de un artista específico
+   */
+  private async searchByArtist(artistName: string): Promise<void> {
+    let offset = 0;
+    const limit = 50;
+    const maxResultsPerArtist = 200; // Límite por artista para evitar búsquedas infinitas
+    let hasMore = true;
+
+    while (hasMore && offset < maxResultsPerArtist) {
+      try {
+        const query = `artist:"${artistName}"`;
+        const searchResult = await this.spotifyClient.searchTracks(query, limit, offset);
+        const tracks = searchResult.tracks.items;
+
+        if (tracks.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        this.stats.totalFound += tracks.length;
+        console.log(`   📦 Encontrados ${tracks.length} tracks (offset: ${offset})`);
+
+        // Filtrar tracks que ya procesamos
+        const newTracks = tracks.filter(track => !this.processedIds.has(track.id));
+
+        if (newTracks.length === 0) {
+          console.log(`   ⏭️  Todos los tracks ya fueron procesados`);
+          this.stats.duplicates += tracks.length;
+        } else {
+          // Procesar tracks (esto filtra por label automáticamente)
+          const processedTracks = await this.processTracks(newTracks);
+
+          if (processedTracks.length > 0) {
+            // Limitar tracks si excede el máximo
+            let tracksToSave = processedTracks;
+            if (this.stats.totalSaved + processedTracks.length > this.maxTracksLimit) {
+              const remaining = this.maxTracksLimit - this.stats.totalSaved;
+              tracksToSave = processedTracks.slice(0, remaining);
+              console.log(`   ⚠️  Límite alcanzado. Guardando solo ${remaining} de ${processedTracks.length} tracks.`);
+            }
+            
+            // Guardar en Supabase
+            await this.supabaseClient.upsertTracks(tracksToSave);
+            this.stats.totalSaved += tracksToSave.length;
+            console.log(`   ✅ Guardados ${tracksToSave.length} tracks del label`);
+
+            // Agregar a processedIds para evitar duplicados en esta sesión
+            tracksToSave.forEach(t => this.processedIds.add(t.spotify_id));
+            
+            // Si alcanzamos el límite, parar
+            if (this.stats.totalSaved >= this.maxTracksLimit) {
+              console.log(`   ⏹️  Límite de ${this.maxTracksLimit} tracks alcanzado.`);
+              break;
+            }
+          } else {
+            console.log(`   ℹ️  Ningún track de este artista coincide con el label`);
+          }
+        }
+
+        // Verificar si hay más resultados
+        hasMore = searchResult.tracks.next !== null;
+        offset += limit;
+
+        // Pequeña pausa para evitar rate limits
+        await this.sleep(200);
+
+      } catch (error) {
+        console.error(`   ❌ Error buscando artista "${artistName}" (offset ${offset}):`, error);
+        this.stats.errors++;
+        hasMore = false;
+      }
+    }
   }
 
   /**

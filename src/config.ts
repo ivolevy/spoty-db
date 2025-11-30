@@ -21,6 +21,14 @@ export const config = {
     labelSearchTerm: process.env.LABEL_SEARCH_TERM || 'dale play records',
     maxTracksToProcess: parseInt(process.env.MAX_TRACKS_TO_PROCESS || '50', 10), // Límite para pruebas
     testMode: process.env.TEST_MODE === 'true', // Modo test: menos búsquedas
+    // Lista de artistas conocidos del sello (separados por comas)
+    knownArtists: process.env.KNOWN_ARTISTS 
+      ? process.env.KNOWN_ARTISTS.split(',').map(a => a.trim()).filter(a => a.length > 0)
+      : [
+          'Bizarrap', 'Duki', 'Nicki Nicole', 'Paulo Londra', 'Rels B',
+          'Airbag', 'Lali', 'Milo J', 'Rei', 'Delaossa',
+          'LUANA', 'Taichu', 'Urbanse', 'Lautaro LR'
+        ],
   },
 };
 
