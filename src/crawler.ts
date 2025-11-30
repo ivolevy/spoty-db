@@ -63,14 +63,11 @@ export class SpotifyCrawler {
       }
     }
 
-    // Luego hacer búsquedas generales (por si hay artistas nuevos o tracks sin artista conocido)
-    if (this.stats.totalSaved < this.maxTracksLimit) {
+    // Luego hacer búsquedas generales (solo si NO está en modo test)
+    // En modo test solo buscamos por artistas conocidos para ser más rápido
+    if (!config.crawler.testMode && this.stats.totalSaved < this.maxTracksLimit) {
       console.log(`\n🔍 Búsquedas generales (para encontrar tracks adicionales)...`);
       const searchQueries = this.generateSearchQueries();
-      
-      if (config.crawler.testMode) {
-        console.log('🧪 MODO TEST ACTIVADO: Búsquedas limitadas');
-      }
 
       for (const query of searchQueries) {
         // Si ya alcanzamos el límite, parar
@@ -82,6 +79,8 @@ export class SpotifyCrawler {
         console.log(`\n🔍 Buscando: "${query}"`);
         await this.searchAndProcess(query);
       }
+    } else if (config.crawler.testMode) {
+      console.log(`\n🧪 MODO TEST: Solo búsqueda por artistas conocidos (sin búsquedas generales)`);
     }
 
     // Mostrar estadísticas finales
