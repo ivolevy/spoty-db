@@ -36,24 +36,30 @@ export class SpotifyCrawler {
     console.log(`📅 Buscando tracks desde ${config.crawler.startYear}`);
     console.log(`🏷️  Label objetivo: "${config.crawler.labelSearchTerm}"`);
 
-    // Cargar IDs existentes para deduplicación (con timeout de 3 segundos)
-    console.log('📊 Cargando tracks existentes de la base de datos...');
-    try {
-      const timeoutPromise = new Promise<Set<string>>((resolve) => {
-        setTimeout(() => {
-          console.log('⏱️  Timeout: Continuando sin cargar IDs existentes (más rápido)');
-          resolve(new Set());
-        }, 3000);
-      });
-      
-      const queryPromise = this.supabaseClient.getExistingSpotifyIds();
-      
-      this.processedIds = await Promise.race([queryPromise, timeoutPromise]);
-      console.log(`✅ ${this.processedIds.size} tracks ya existen en la base de datos`);
-    } catch (error: any) {
-      console.error('❌ Error cargando tracks existentes:', error.message);
-      console.log('⚠️  Continuando sin deduplicación previa...');
-      this.processedIds = new Set(); // Continuar con set vacío
+    // Cargar IDs existentes para deduplicación
+    // En modo test, saltamos esto para ser más rápido
+    if (config.crawler.testMode) {
+      console.log('🧪 MODO TEST: Saltando carga de IDs existentes (más rápido)');
+      this.processedIds = new Set();
+    } else {
+      console.log('📊 Cargando tracks existentes de la base de datos...');
+      try {
+        const timeoutPromise = new Promise<Set<string>>((resolve) => {
+          setTimeout(() => {
+            console.log('⏱️  Timeout: Continuando sin cargar IDs existentes');
+            resolve(new Set());
+          }, 3000);
+        });
+        
+        const queryPromise = this.supabaseClient.getExistingSpotifyIds();
+        
+        this.processedIds = await Promise.race([queryPromise, timeoutPromise]);
+        console.log(`✅ ${this.processedIds.size} tracks ya existen en la base de datos`);
+      } catch (error: any) {
+        console.error('❌ Error cargando tracks existentes:', error.message);
+        console.log('⚠️  Continuando sin deduplicación previa...');
+        this.processedIds = new Set();
+      }
     }
 
     // Primero buscar por artistas conocidos (más eficiente)
