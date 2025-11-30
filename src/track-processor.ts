@@ -87,11 +87,21 @@ export class TrackProcessor {
    */
   async processTracks(tracks: SpotifyTrack[]): Promise<TrackData[]> {
     const results: TrackData[] = [];
+    const batchSize = 5; // Procesar en batches más pequeños para evitar rate limits
 
-    for (const track of tracks) {
-      const processed = await this.processTrack(track);
-      if (processed) {
-        results.push(processed);
+    for (let i = 0; i < tracks.length; i += batchSize) {
+      const batch = tracks.slice(i, i + batchSize);
+      
+      for (const track of batch) {
+        const processed = await this.processTrack(track);
+        if (processed) {
+          results.push(processed);
+        }
+      }
+      
+      // Pequeña pausa entre batches para evitar rate limits
+      if (i + batchSize < tracks.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
 

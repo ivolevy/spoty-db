@@ -140,8 +140,11 @@ export class SpotifyCrawler {
   private async searchByArtist(artistName: string): Promise<void> {
     let offset = 0;
     const limit = 50;
-    const maxResultsPerArtist = 200; // Límite por artista para evitar búsquedas infinitas
+    // En modo test, limitar a solo 50 tracks por artista para ser más rápido
+    const maxResultsPerArtist = config.crawler.testMode ? 50 : 200;
     let hasMore = true;
+
+    console.log(`   🔄 Procesando artista "${artistName}" (máximo ${maxResultsPerArtist} tracks)...`);
 
     while (hasMore && offset < maxResultsPerArtist) {
       try {
