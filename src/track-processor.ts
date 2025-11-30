@@ -23,8 +23,14 @@ export class TrackProcessor {
       // Verificar que el label coincida
       const label = track.album.label;
       if (!matchesLabel(label, config.crawler.labelSearchTerm)) {
+        // Log solo cada 10 tracks para no saturar
+        if (Math.random() < 0.1) {
+          console.log(`   ⏭️  Track "${track.name}" no coincide con label (label: ${label || 'sin label'})`);
+        }
         return null;
       }
+      
+      console.log(`   ✓ Track "${track.name}" coincide con label: ${label}`);
 
       // Obtener audio features (BPM)
       let audioFeatures: SpotifyAudioFeatures | null = null;

@@ -127,13 +127,16 @@ export class SpotifyClient {
    * Busca tracks en Spotify
    */
   async searchTracks(query: string, limit: number = 50, offset: number = 0): Promise<SearchResult> {
-    return this.makeRequest<SearchResult>('get', '/search', {
+    console.log(`   🔍 Request a Spotify API: query="${query}", limit=${limit}, offset=${offset}`);
+    const result = await this.makeRequest<SearchResult>('get', '/search', {
       q: query,
       type: 'track',
       limit,
       offset,
       market: 'US', // Market para obtener preview_url
     });
+    console.log(`   ✅ Spotify API respondió: ${result.tracks.items.length} tracks encontrados (total: ${result.tracks.total})`);
+    return result;
   }
 
   /**
