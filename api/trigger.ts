@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { SpotifyCrawler } from '../src/crawler';
 
 /**
