@@ -359,8 +359,8 @@
                 <div class="stat-label">Total de Canciones</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="tracks-this-year">-</div>
-                <div class="stat-label">Lanzamientos 2024</div>
+                <div class="stat-value" id="total-artists">-</div>
+                <div class="stat-label">Artistas Únicos</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="top-genre">-</div>
@@ -424,14 +424,9 @@
         
         function updateStats(tracks) {
             const total = tracks.length;
-            const currentYear = new Date().getFullYear();
             
-            // Tracks de este año
-            const tracksThisYear = tracks.filter(t => {
-                if (!t.release_date) return false;
-                const year = new Date(t.release_date).getFullYear();
-                return year === currentYear;
-            }).length;
+            // Artistas únicos
+            const artists = new Set(tracks.flatMap(t => t.artists || [])).size;
             
             // Género más popular
             const genreCount = {};
@@ -466,7 +461,7 @@
             };
             
             document.getElementById('total-tracks').textContent = total;
-            document.getElementById('tracks-this-year').textContent = tracksThisYear;
+            document.getElementById('total-artists').textContent = artists;
             document.getElementById('top-genre').textContent = topGenre ? topGenre.substring(0, 15) : '-';
             document.getElementById('last-update').textContent = formatDate(lastUpdate);
         }
