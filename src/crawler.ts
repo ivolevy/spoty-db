@@ -68,15 +68,23 @@ export class SpotifyCrawler {
     const currentYear = new Date().getFullYear();
     const queries: string[] = [];
 
+    if (config.crawler.testMode) {
+      // Modo prueba: solo búsquedas simples y últimos años
+      console.log('🧪 Modo TEST activado - búsqueda limitada');
+      queries.push(`"${label}"`);
+      queries.push(`year:${currentYear}`);
+      queries.push(`year:${currentYear - 1}`);
+      return queries;
+    }
+
+    // Modo normal: búsquedas completas
     // Estrategia 1: Buscar por términos del label en texto libre
-    // Esto puede encontrar tracks donde el label aparece en metadata
     queries.push(`"${label}"`);
     queries.push(`"Dale Play Records"`);
     queries.push(`"DALE PLAY RECORDS"`);
     queries.push(`"DalePlay Records"`);
 
     // Estrategia 2: Buscar solo en los últimos 3 años para eficiencia
-    // Los años anteriores se pueden buscar manualmente si es necesario
     const recentYears = Math.min(3, currentYear - config.crawler.startYear + 1);
     for (let i = 0; i < recentYears; i++) {
       const year = currentYear - i;
@@ -92,10 +100,11 @@ export class SpotifyCrawler {
   private async searchAndProcess(query: string): Promise<void> {
     let offset = 0;
     const limit = 50; // Máximo permitido por Spotify
-    const maxResultsPerQuery = 1000; // Límite para evitar búsquedas infinitas
+    const maxResultsPerQuery = config.crawler.testMode ? 100 : 1000; // Límite más bajo en modo test
     let hasMore = true;
+    const maxTracksToProcess = config.crawler.maxTracks > 0 ? config.crawler.maxTracks : Infinity;
 
-    while (hasMore && offset < maxResultsPerQuery) {
+    while (hasMore && offset < maxResultsPerQuery && this.stats.totalSaved < maxTracksToProcess) {
       try {
         const searchResult = await this.spotifyClient.searchTracks(query, limit, offset);
         const tracks = searchResult.tracks.items;

@@ -19,6 +19,8 @@ export const config = {
   crawler: {
     startYear: parseInt(process.env.START_YEAR || '2010', 10),
     labelSearchTerm: process.env.LABEL_SEARCH_TERM || 'dale play records',
+    maxTracks: parseInt(process.env.MAX_TRACKS || '0', 10), // 0 = sin límite
+    testMode: process.env.TEST_MODE === 'true',
   },
 };
 
