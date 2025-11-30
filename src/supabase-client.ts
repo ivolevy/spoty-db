@@ -88,15 +88,24 @@ export class SupabaseClientWrapper {
    * Útil para deduplicación antes de insertar
    */
   async getExistingSpotifyIds(): Promise<Set<string>> {
-    const { data, error } = await this.client
-      .from('label_tracks')
-      .select('spotify_id');
+    try {
+      console.log('🔗 Conectando a Supabase...');
+      const { data, error } = await this.client
+        .from('label_tracks')
+        .select('spotify_id')
+        .limit(10000); // Limitar para evitar timeouts con tablas muy grandes
 
-    if (error) {
-      throw new Error(`Error obteniendo IDs existentes: ${error.message}`);
+      if (error) {
+        console.error('❌ Error de Supabase:', error);
+        throw new Error(`Error obteniendo IDs existentes: ${error.message}`);
+      }
+
+      console.log(`📊 Recibidos ${data?.length || 0} IDs de Supabase`);
+      return new Set((data || []).map(row => row.spotify_id));
+    } catch (error: any) {
+      console.error('❌ Error completo en getExistingSpotifyIds:', error);
+      throw error;
     }
-
-    return new Set(data.map(row => row.spotify_id));
   }
 
   /**

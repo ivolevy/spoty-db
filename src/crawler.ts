@@ -36,9 +36,15 @@ export class SpotifyCrawler {
 
     // Cargar IDs existentes para deduplicación
     console.log('📊 Cargando tracks existentes de la base de datos...');
-    const existingIds = await this.supabaseClient.getExistingSpotifyIds();
-    this.processedIds = new Set(existingIds);
-    console.log(`✅ ${this.processedIds.size} tracks ya existen en la base de datos`);
+    try {
+      const existingIds = await this.supabaseClient.getExistingSpotifyIds();
+      this.processedIds = new Set(existingIds);
+      console.log(`✅ ${this.processedIds.size} tracks ya existen en la base de datos`);
+    } catch (error: any) {
+      console.error('❌ Error cargando tracks existentes:', error.message);
+      console.log('⚠️  Continuando sin deduplicación previa...');
+      this.processedIds = new Set(); // Continuar con set vacío
+    }
 
     // Estrategias de búsqueda múltiples
     const searchQueries = this.generateSearchQueries();
