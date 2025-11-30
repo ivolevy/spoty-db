@@ -88,34 +88,40 @@ export class SupabaseClientWrapper {
    * Útil para deduplicación antes de insertar
    */
   async getExistingSpotifyIds(): Promise<Set<string>> {
-    try {
-      console.log('🔗 Conectando a Supabase...');
-      
-      // Timeout de 10 segundos
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout: La consulta a Supabase tardó más de 10 segundos')), 10000);
-      });
-      
-      const queryPromise = this.client
+    console.log('🔗 Conectando a Supabase...');
+    
+    return new Promise((resolve) => {
+      // Timeout de 5 segundos - si tarda más, continuar sin deduplicación
+      const timeout = setTimeout(() => {
+        console.log('⏱️  Timeout: Continuando sin cargar IDs existentes (tabla vacía o conexión lenta)');
+        resolve(new Set());
+      }, 5000);
+
+      this.client
         .from('label_tracks')
         .select('spotify_id')
-        .limit(10000);
+        .limit(10000)
+        .then(({ data, error }) => {
+          clearTimeout(timeout);
+          
+          if (error) {
+            console.error('❌ Error de Supabase:', error.message);
+            console.log('⚠️  Continuando sin deduplicación previa...');
+            resolve(new Set());
+            return;
+          }
 
-      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
-
-      if (error) {
-        console.error('❌ Error de Supabase:', error);
-        throw new Error(`Error obteniendo IDs existentes: ${error.message}`);
-      }
-
-      console.log(`📊 Recibidos ${data?.length || 0} IDs de Supabase`);
-      return new Set((data || []).map((row: any) => row.spotify_id));
-    } catch (error: any) {
-      console.error('❌ Error completo en getExistingSpotifyIds:', error.message);
-      // Si falla, retornar set vacío para que continúe
-      console.log('⚠️  Continuando sin deduplicación previa...');
-      return new Set();
-    }
+          const ids = (data || []).map((row: any) => row.spotify_id);
+          console.log(`✅ Recibidos ${ids.length} IDs de Supabase`);
+          resolve(new Set(ids));
+        })
+        .catch((error: any) => {
+          clearTimeout(timeout);
+          console.error('❌ Error en consulta:', error.message);
+          console.log('⚠️  Continuando sin deduplicación previa...');
+          resolve(new Set());
+        });
+    });
   }
 
   /**
