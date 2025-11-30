@@ -49,6 +49,10 @@ export class SpotifyClient {
       // Expira 5 minutos antes para evitar problemas de timing
       this.tokenExpiresAt = Date.now() + (response.data.expires_in - 300) * 1000;
 
+      if (!this.accessToken) {
+        throw new Error('No se recibió token de acceso de Spotify');
+      }
+
       return this.accessToken;
     } catch (error) {
       console.error('Error obteniendo token de Spotify:', error);
