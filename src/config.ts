@@ -25,9 +25,7 @@ export const config = {
     knownArtists: process.env.KNOWN_ARTISTS 
       ? process.env.KNOWN_ARTISTS.split(',').map(a => a.trim()).filter(a => a.length > 0)
       : [
-          'Bizarrap', 'Duki', 'Nicki Nicole', 'Paulo Londra', 'Rels B',
-          'Airbag', 'Lali', 'Milo J', 'Rei', 'Delaossa',
-          'LUANA', 'Taichu', 'Urbanse', 'Lautaro LR'
+          'Bizarrap', 'Duki', 'Nicki Nicole', 'Paulo Londra', 'Rels B', 'Airbag'
         ],
   },
 };
