@@ -25,6 +25,15 @@ async function searchAndSaveTrack(artistName: string, trackName?: string) {
   const spotify = new SpotifyService();
   const supabase = new SupabaseService();
 
+  // Si hay token de usuario en .env, usarlo
+  if (process.env.SPOTIFY_USER_TOKEN) {
+    spotify.setUserToken(process.env.SPOTIFY_USER_TOKEN);
+    console.log('✅ Token de usuario cargado desde .env');
+  } else {
+    console.warn('⚠️  No hay SPOTIFY_USER_TOKEN en .env. BPM no estará disponible.');
+    console.warn('   Ejecuta: npm run get-token');
+  }
+
   try {
     // 1. Buscar artista
     console.log(`\n🔍 Buscando artista "${artistName}"...`);
