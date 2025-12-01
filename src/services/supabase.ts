@@ -72,18 +72,47 @@ export class SupabaseService {
    */
   async getAllTracks(): Promise<any[]> {
     try {
-      // Supabase puede tener límites por defecto, así que obtenemos todos explícitamente
-      const { data, error, count } = await this.client
+      // Primero obtener el count total
+      const { count: totalCount } = await this.client
         .from('artist_tracks')
-        .select('*', { count: 'exact' })
-        .order('fetched_at', { ascending: false });
+        .select('*', { count: 'exact', head: true });
+
+      console.log(`📊 Total tracks en DB según count: ${totalCount || 0}`);
+
+      // Obtener todos los tracks, ordenando por fetched_at pero incluyendo NULLs
+      // Usamos nullsFirst para que los tracks sin fetched_at también aparezcan
+      const { data, error } = await this.client
+        .from('artist_tracks')
+        .select('*')
+        .order('fetched_at', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: false }); // Orden secundario por ID para consistencia
 
       if (error) {
         throw error;
       }
 
       const tracks = data || [];
-      console.log(`📊 Total tracks en DB: ${count || tracks.length}, tracks devueltos: ${tracks.length}`);
+      console.log(`📊 Tracks devueltos por query: ${tracks.length} (esperados: ${totalCount || 0})`);
+
+      // Si hay diferencia, intentar obtener sin ordenamiento para debug
+      if (totalCount && tracks.length < totalCount) {
+        console.warn(`⚠️  Advertencia: Se esperaban ${totalCount} tracks pero se devolvieron ${tracks.length}`);
+        // Intentar obtener todos sin ordenamiento
+        const { data: allData, error: allError } = await this.client
+          .from('artist_tracks')
+          .select('*');
+
+        if (!allError && allData) {
+          console.log(`📊 Tracks sin ordenamiento: ${allData.length}`);
+          // Ordenar manualmente
+          return allData.sort((a: any, b: any) => {
+            if (!a.fetched_at && !b.fetched_at) return 0;
+            if (!a.fetched_at) return 1;
+            if (!b.fetched_at) return -1;
+            return new Date(b.fetched_at).getTime() - new Date(a.fetched_at).getTime();
+          });
+        }
+      }
 
       return tracks;
     } catch (error) {
