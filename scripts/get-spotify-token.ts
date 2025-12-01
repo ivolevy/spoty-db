@@ -35,13 +35,27 @@ async function getSpotifyToken() {
   console.log('\n🔐 Obtener Token de Usuario de Spotify\n');
   console.log('Este script te ayudará a obtener un token de usuario para acceder a BPM.\n');
 
-  // Opción 1: Usar la consola de Spotify (más fácil)
-  console.log('📋 OPCIÓN 1: Usar la Consola de Spotify (RECOMENDADO)\n');
-  console.log('1. Ve a: https://developer.spotify.com/console/get-audio-features/');
-  console.log('2. Click en "Get Token"');
+  // Opción 1: Usar el frontend (más fácil y funciona)
+  console.log('📋 OPCIÓN 1: Usar el Frontend (RECOMENDADO)\n');
+  console.log('1. Ve a tu app en Vercel: https://spoty-dbtracks.vercel.app');
+  console.log('2. Click en "Conectar Spotify"');
   console.log('3. Autoriza la aplicación');
-  console.log('4. Copia el token que aparece');
-  console.log('5. Pégalo aquí abajo\n');
+  console.log('4. Después de autorizar, abre la consola del navegador (F12)');
+  console.log('5. Busca el token en localStorage o en los logs');
+  console.log('6. O simplemente ejecuta la sincronización desde el frontend\n');
+
+  // Opción 2: Obtener token manualmente
+  console.log('📋 OPCIÓN 2: Obtener Token Manualmente\n');
+  console.log('1. Ve a: https://developer.spotify.com/dashboard');
+  console.log('2. Selecciona tu app');
+  console.log('3. Ve a "Users and Access" o crea una nueva app si no tienes');
+  console.log('4. Usa el flujo OAuth desde tu frontend (ya está implementado)');
+  console.log('5. O usa este script para obtener el token desde la URL de callback\n');
+
+  console.log('📋 OPCIÓN 3: Token desde URL de Callback\n');
+  console.log('Si ya te conectaste desde el frontend, el token está en la URL:');
+  console.log('Busca en la URL algo como: ?auth=success&token=...');
+  console.log('Copia el token de ahí\n');
 
   const token = await question('Pega el token aquí: ');
 
