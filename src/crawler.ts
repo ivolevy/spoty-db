@@ -47,10 +47,13 @@ export class SpotifyCrawler {
           this.supabaseClient.getExistingSpotifyIds(),
           timeoutPromise
         ]);
+        console.log(`📊 Cargados ${this.processedIds.size} IDs existentes`);
       } catch (error: any) {
+        console.log('⚠️  Error cargando IDs, continuando sin deduplicación previa');
         this.processedIds = new Set();
       }
     } else {
+      console.log('🧪 Modo test: saltando carga de IDs');
       this.processedIds = new Set();
     }
 
