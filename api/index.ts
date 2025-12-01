@@ -11,13 +11,9 @@ const app = express();
 
 app.use(express.json());
 
-// Serve static files from public directory
+// Serve static files from public directory - MUST BE FIRST
 const publicPath = path.join(process.cwd(), 'public');
-app.use(express.static(publicPath, {
-  maxAge: '1y',
-  etag: true,
-  lastModified: true
-}));
+app.use(express.static(publicPath));
 
 // API Routes
 app.get('/health', (req, res) => {
