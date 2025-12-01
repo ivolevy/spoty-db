@@ -21,20 +21,29 @@ export default async function handler(
     console.log('🔄 Iniciando cron job desde Vercel...');
     console.log(`📅 Timestamp: ${new Date().toISOString()}`);
 
-    // Responder inmediatamente para evitar timeout
+    // Responder inmediatamente para evitar timeout de Vercel
     res.status(202).json({
       success: true,
       message: 'Cron job iniciado. Revisa los logs en Vercel para ver el progreso.',
       timestamp: new Date().toISOString(),
     });
 
-    // Ejecutar sincronización en segundo plano
+    // Ejecutar sincronización en segundo plano (sin await para que no bloquee)
+    // Pero necesitamos await para que los errores se capturen
     const syncService = new SyncService();
-    await syncService.syncArtists();
+    
+    // Ejecutar con timeout global de 50 segundos (límite de Vercel para funciones)
+    const syncPromise = syncService.syncArtists();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Sync timeout after 50s')), 50000)
+    );
 
+    await Promise.race([syncPromise, timeoutPromise]);
+    
     console.log('✅ Cron job completado exitosamente');
   } catch (error: any) {
     console.error('❌ Error en cron job:', error);
+    console.error('Stack:', error.stack);
     // Los errores se verán en los logs de Vercel
   }
 }

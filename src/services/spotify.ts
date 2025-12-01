@@ -62,8 +62,12 @@ export class SpotifyService {
                 `${clientId}:${clientSecret}`
               ).toString('base64')}`,
             },
-            timeout: 10000, // 10 segundos
+            timeout: 8000, // 8 segundos - más corto para fallar rápido
             validateStatus: (status) => status < 500, // No lanzar error para 4xx
+            // Agregar configuración adicional para Vercel
+            maxRedirects: 0,
+            httpAgent: false,
+            httpsAgent: false,
           }
         );
 
