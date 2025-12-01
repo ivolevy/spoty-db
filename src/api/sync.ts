@@ -9,8 +9,11 @@ import { SpotifyService } from '../services/spotify';
  */
 export async function syncArtists(req: Request, res: Response) {
   try {
-    console.log('🚀 Iniciando sincronización manual desde frontend...');
+    console.log('='.repeat(80));
+    console.log('🚀 INICIANDO SINCRONIZACIÓN MANUAL DESDE FRONTEND');
     console.log(`📅 Timestamp: ${new Date().toISOString()}`);
+    console.log(`🌐 Request desde: ${req.get('origin') || req.get('referer') || 'unknown'}`);
+    console.log('='.repeat(80));
 
     // Verificar token de usuario
     const spotifyInstance = getSpotifyServiceInstance() || new SpotifyService();

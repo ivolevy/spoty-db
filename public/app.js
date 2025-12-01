@@ -306,10 +306,14 @@ document.getElementById('syncBtn')?.addEventListener('click', async () => {
     btn.disabled = true;
     btn.textContent = 'Sincronizando...';
     
+    console.log('🔄 Click en botón Sincronizar detectado');
+    
     try {
         // Verificar si hay token de usuario configurado
+        console.log('🔍 Verificando token de usuario...');
         const tokenStatus = await fetch(`${API_BASE}/api/token/status`);
         const status = await tokenStatus.json();
+        console.log('📊 Estado del token:', status);
         
         if (!status.hasToken) {
             const proceed = confirm('No hay token de usuario configurado. Sin él, no se podrá obtener BPM. ¿Deseas continuar de todas formas?');
@@ -320,6 +324,7 @@ document.getElementById('syncBtn')?.addEventListener('click', async () => {
             }
         }
         
+        console.log('🚀 Llamando a /api/sync...');
         const response = await fetch(`${API_BASE}/api/sync`, {
             method: 'POST',
             headers: {
@@ -327,11 +332,16 @@ document.getElementById('syncBtn')?.addEventListener('click', async () => {
             }
         });
         
+        console.log('📥 Respuesta recibida:', response.status, response.statusText);
+        
         if (response.ok || response.status === 202) {
+            const responseData = await response.json().catch(() => ({}));
+            console.log('✅ Respuesta del servidor:', responseData);
             showNotification('✅ Sincronización iniciada. Esto puede tardar unos minutos...', 'success');
             
-            // Esperar un poco y luego refrescar
+            // Esperar más tiempo antes de refrescar (la sync puede tardar)
             setTimeout(() => {
+                console.log('🔄 Refrescando datos...');
                 loadStats();
                 const activeTab = document.querySelector('.tab.active');
                 if (activeTab?.dataset.tab === 'tracks') {
@@ -339,13 +349,14 @@ document.getElementById('syncBtn')?.addEventListener('click', async () => {
                 } else if (activeTab?.dataset.tab === 'artists') {
                     loadArtists();
                 }
-            }, 3000);
+            }, 10000); // Aumentado a 10 segundos
         } else {
             const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+            console.error('❌ Error en respuesta:', errorData);
             showNotification(`❌ Error: ${errorData.error || 'Error al iniciar sincronización'}`, 'error');
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('❌ Error al sincronizar:', error);
         showNotification('❌ Error al iniciar sincronización', 'error');
     } finally {
         // Mantener el botón deshabilitado por un tiempo para evitar múltiples clicks
