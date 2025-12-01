@@ -161,8 +161,9 @@ export class SpotifyService {
 
   /**
    * Realiza una petición con manejo automático de rate limits y reintentos
+   * Puede ser llamado desde fuera de la clase para búsquedas personalizadas
    */
-  private async makeRequest<T>(
+  async makeRequest<T>(
     method: 'get' | 'post',
     url: string,
     params?: Record<string, any>,
