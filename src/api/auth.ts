@@ -33,20 +33,28 @@ export async function login(req: Request, res: Response) {
       return res.status(500).json({ error: 'SPOTIFY_CLIENT_ID no configurado' });
     }
 
+    // Scopes mínimos necesarios (audio-features puede requerir permisos especiales)
     const scopes = [
       'user-read-private',
       'user-read-email',
-      'user-read-playback-state',
-      'user-read-currently-playing',
     ].join(' ');
     
-    const authUrl = `https://accounts.spotify.com/authorize?` +
-      `client_id=${clientId}&` +
-      `response_type=code&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `scope=${encodeURIComponent(scopes)}`;
+    // Construir URL de autorización
+    const params = new URLSearchParams({
+      client_id: clientId,
+      response_type: 'code',
+      redirect_uri: redirectUri,
+      scope: scopes,
+      show_dialog: 'false', // No mostrar diálogo si ya está autorizado
+    });
     
-    console.log(`🚀 Redirigiendo a Spotify con redirect_uri: ${redirectUri}`);
+    const authUrl = `https://accounts.spotify.com/authorize?${params.toString()}`;
+    
+    console.log(`🚀 Redirigiendo a Spotify:`);
+    console.log(`   Redirect URI: ${redirectUri}`);
+    console.log(`   Scopes: ${scopes}`);
+    console.log(`   URL completa: ${authUrl.substring(0, 100)}...`);
+    
     res.redirect(authUrl);
   } catch (error: any) {
     console.error('Error en login:', error);
