@@ -29,7 +29,12 @@ export class SupabaseService {
         new Map(tracks.map(track => [track.spotify_id, track])).values()
       );
 
-      console.log(`   Guardando ${uniqueTracks.length} tracks únicos (de ${tracks.length} totales)`);
+      const duplicatesRemoved = tracks.length - uniqueTracks.length;
+      if (duplicatesRemoved > 0) {
+        console.log(`   ⚠️  Se encontraron ${duplicatesRemoved} tracks duplicados en esta sincronización (mismo spotify_id)`);
+      }
+
+      console.log(`   💾 Procesando ${uniqueTracks.length} tracks únicos para guardar/actualizar en Supabase`);
       
       // Verificar que los géneros se están guardando
       const tracksWithGenres = uniqueTracks.filter(t => t.genres && t.genres.length > 0);
@@ -37,11 +42,17 @@ export class SupabaseService {
         console.log(`   🎵 ${tracksWithGenres.length} tracks tienen géneros asignados`);
       }
 
+      // Obtener count actual antes del upsert
+      const { count: countBefore } = await this.client
+        .from('artist_tracks')
+        .select('*', { count: 'exact', head: true });
+
       // Hacer upsert en batches de 50 para evitar problemas
       const batchSize = 50;
+      let savedCount = 0;
       for (let i = 0; i < uniqueTracks.length; i += batchSize) {
         const batch = uniqueTracks.slice(i, i + batchSize);
-        const { error } = await this.client
+        const { error, data } = await this.client
           .from('artist_tracks')
           .upsert(
             batch.map((track) => ({
@@ -66,7 +77,18 @@ export class SupabaseService {
         if (error) {
           throw error;
         }
+        
+        savedCount += batch.length;
+        console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1}: ${batch.length} tracks procesados (${savedCount}/${uniqueTracks.length})`);
       }
+
+      // Obtener count después del upsert
+      const { count: countAfter } = await this.client
+        .from('artist_tracks')
+        .select('*', { count: 'exact', head: true });
+
+      console.log(`   📊 Total en Supabase: ${countBefore || 0} → ${countAfter || 0} tracks`);
+      console.log(`   ✅ ${uniqueTracks.length} tracks procesados exitosamente (insertados nuevos o actualizados existentes)`);
     } catch (error) {
       console.error('Error haciendo upsert de tracks:', error);
       throw error;
