@@ -9,15 +9,20 @@ export async function login(req: Request, res: Response) {
   try {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     
-    // Usar la redirect URI de las variables de entorno o construirla automáticamente
+    // SIEMPRE usar la redirect URI de las variables de entorno (debe coincidir exactamente con Spotify Dashboard)
     let redirectUri = process.env.SPOTIFY_REDIRECT_URI;
     
     if (!redirectUri) {
-      // En Vercel, usar la URL del request
+      // Si no está configurada, construirla desde el request
       const host = req.get('host');
       const protocol = req.protocol || 'https';
       redirectUri = `${protocol}://${host}/api/auth/callback`;
+      console.warn(`⚠️  SPOTIFY_REDIRECT_URI no configurada. Usando: ${redirectUri}`);
+      console.warn(`⚠️  IMPORTANTE: Esta URI debe coincidir EXACTAMENTE con la configurada en Spotify Dashboard`);
     }
+    
+    // Log para debugging
+    console.log(`🔗 Redirect URI que se usará: ${redirectUri}`);
     
     if (!clientId) {
       return res.status(500).json({ error: 'SPOTIFY_CLIENT_ID no configurado' });
@@ -34,6 +39,7 @@ export async function login(req: Request, res: Response) {
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `scope=${encodeURIComponent(scopes)}`;
     
+    console.log(`🚀 Redirigiendo a Spotify con redirect_uri: ${redirectUri}`);
     res.redirect(authUrl);
   } catch (error: any) {
     console.error('Error en login:', error);
@@ -60,15 +66,18 @@ export async function callback(req: Request, res: Response) {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
     
-    // Usar la redirect URI de las variables de entorno o construirla automáticamente
+    // SIEMPRE usar la redirect URI de las variables de entorno (debe coincidir exactamente con Spotify Dashboard)
     let redirectUri = process.env.SPOTIFY_REDIRECT_URI;
     
     if (!redirectUri) {
-      // En Vercel, usar la URL del request
+      // Si no está configurada, construirla desde el request
       const host = req.get('host');
       const protocol = req.protocol || 'https';
       redirectUri = `${protocol}://${host}/api/auth/callback`;
+      console.warn(`⚠️  SPOTIFY_REDIRECT_URI no configurada. Usando: ${redirectUri}`);
     }
+    
+    console.log(`🔗 Callback usando redirect URI: ${redirectUri}`);
     
     if (!clientId || !clientSecret) {
       return res.redirect('/?auth=error&message=Credenciales no configuradas');

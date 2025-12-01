@@ -5,7 +5,9 @@ import { getAllTracks, getTrackById } from '../src/api/tracks';
 import { getAllArtists, getArtistTracks } from '../src/api/artists';
 import { getGlobalMetrics, getArtistMetrics } from '../src/api/metrics';
 import { login, callback } from '../src/api/auth';
+import { debugAuth } from '../src/api/auth-debug';
 import { setUserToken, getTokenStatus, setSpotifyServiceInstance } from '../src/api/token';
+import { syncArtists } from '../src/api/sync';
 import { SpotifyService } from '../src/services/spotify';
 
 dotenv.config();
@@ -34,10 +36,14 @@ app.get('/', (req, res) => {
 // Auth endpoints
 app.get('/api/auth/login', login);
 app.get('/api/auth/callback', callback);
+app.get('/api/auth/debug', debugAuth); // Endpoint de debug
 
 // Token endpoints
 app.post('/api/token', setUserToken);
 app.get('/api/token/status', getTokenStatus);
+
+// Sync endpoint (para llamadas manuales desde el frontend)
+app.post('/api/sync', syncArtists);
 
 // Tracks endpoints
 app.get('/tracks', getAllTracks);

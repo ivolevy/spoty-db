@@ -307,25 +307,52 @@ document.getElementById('syncBtn')?.addEventListener('click', async () => {
     btn.textContent = 'Sincronizando...';
     
     try {
-        const response = await fetch(`${API_BASE}/api/cron`);
-        if (response.ok) {
+        // Verificar si hay token de usuario configurado
+        const tokenStatus = await fetch(`${API_BASE}/api/token/status`);
+        const status = await tokenStatus.json();
+        
+        if (!status.hasToken) {
+            const proceed = confirm('No hay token de usuario configurado. Sin él, no se podrá obtener BPM. ¿Deseas continuar de todas formas?');
+            if (!proceed) {
+                btn.disabled = false;
+                btn.textContent = 'Sincronizar';
+                return;
+            }
+        }
+        
+        const response = await fetch(`${API_BASE}/api/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok || response.status === 202) {
+            showNotification('✅ Sincronización iniciada. Esto puede tardar unos minutos...', 'success');
+            
             // Esperar un poco y luego refrescar
             setTimeout(() => {
                 loadStats();
                 const activeTab = document.querySelector('.tab.active');
                 if (activeTab?.dataset.tab === 'tracks') {
                     loadTracks();
+                } else if (activeTab?.dataset.tab === 'artists') {
+                    loadArtists();
                 }
-            }, 2000);
+            }, 3000);
         } else {
-            alert('Error al iniciar sincronización');
+            const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+            showNotification(`❌ Error: ${errorData.error || 'Error al iniciar sincronización'}`, 'error');
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al iniciar sincronización');
+        showNotification('❌ Error al iniciar sincronización', 'error');
     } finally {
-        btn.disabled = false;
-        btn.textContent = 'Sincronizar';
+        // Mantener el botón deshabilitado por un tiempo para evitar múltiples clicks
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = 'Sincronizar';
+        }, 5000);
     }
 });
 
