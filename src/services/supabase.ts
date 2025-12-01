@@ -20,6 +20,7 @@ export class SupabaseService {
    */
   async upsertTracks(tracks: TrackData[]): Promise<void> {
     if (tracks.length === 0) {
+      console.warn('⚠️  upsertTracks llamado con array vacío');
       return;
     }
 
@@ -29,13 +30,17 @@ export class SupabaseService {
         new Map(tracks.map(track => [track.spotify_id, track])).values()
       );
 
-      console.log(`   Guardando ${uniqueTracks.length} tracks únicos (de ${tracks.length} totales)`);
+      console.log(`   📊 Preparando ${uniqueTracks.length} tracks únicos (de ${tracks.length} totales) para guardar`);
 
       // Hacer upsert en batches de 50 para evitar problemas
       const batchSize = 50;
+      let savedCount = 0;
+      
       for (let i = 0; i < uniqueTracks.length; i += batchSize) {
         const batch = uniqueTracks.slice(i, i + batchSize);
-        const { error } = await this.client
+        console.log(`   💾 Guardando batch ${Math.floor(i / batchSize) + 1} (${batch.length} tracks)...`);
+        
+        const { data, error } = await this.client
           .from('artist_tracks')
           .upsert(
             batch.map((track) => ({
@@ -58,11 +63,21 @@ export class SupabaseService {
           );
 
         if (error) {
+          console.error(`   ❌ Error en batch ${Math.floor(i / batchSize) + 1}:`, error);
+          console.error(`   Error details:`, JSON.stringify(error, null, 2));
           throw error;
         }
+        
+        savedCount += batch.length;
+        console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1} guardado exitosamente (${savedCount}/${uniqueTracks.length})`);
       }
-    } catch (error) {
-      console.error('Error haciendo upsert de tracks:', error);
+      
+      console.log(`   ✅ Total: ${savedCount} tracks guardados en Supabase`);
+    } catch (error: any) {
+      console.error('❌ Error haciendo upsert de tracks:');
+      console.error('   Error message:', error.message);
+      console.error('   Error code:', error.code);
+      console.error('   Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
   }

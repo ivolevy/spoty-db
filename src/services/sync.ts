@@ -112,15 +112,23 @@ export class SyncService {
     // 6. Upsert en Supabase
     if (allTracks.length > 0) {
       console.log(`\n💾 Guardando ${allTracks.length} tracks en Supabase...`);
+      console.log(`   Ejemplo de track: ${JSON.stringify(allTracks[0], null, 2)}`);
       try {
         await this.supabase.upsertTracks(allTracks);
-        console.log(`✅ ${allTracks.length} tracks guardados exitosamente`);
-      } catch (error) {
-        console.error('❌ Error guardando tracks en Supabase:', error);
+        console.log(`✅ ${allTracks.length} tracks guardados exitosamente en Supabase`);
+      } catch (error: any) {
+        console.error('❌ Error guardando tracks en Supabase:');
+        console.error('   Error message:', error.message);
+        console.error('   Error details:', error);
+        if (error.response) {
+          console.error('   Response status:', error.response.status);
+          console.error('   Response data:', error.response.data);
+        }
         throw error;
       }
     } else {
       console.warn('⚠️  No hay tracks para guardar');
+      console.warn('   Esto puede significar que no se encontraron tracks o hubo errores al procesarlos');
     }
 
     console.log('\n✅ Sincronización completada');
