@@ -97,23 +97,6 @@ export class SpotifyService {
           }
           throw err;
         }
-
-        const elapsed = Date.now() - startTime;
-        console.log(`[${new Date().toISOString()}] Respuesta recibida en ${elapsed}ms (status: ${response.status})`);
-
-        if (response.status !== 200) {
-          throw new Error(`Spotify API returned status ${response.status}: ${JSON.stringify(response.data)}`);
-        }
-
-        this.accessToken = response.data.access_token;
-        this.tokenExpiresAt = Date.now() + (response.data.expires_in - 300) * 1000;
-
-        if (!this.accessToken) {
-          throw new Error('No se recibió token de acceso de Spotify');
-        }
-
-        console.log(`✅ Token de Spotify obtenido exitosamente (intento ${attempt})`);
-        return this.accessToken;
       } catch (error: any) {
         lastError = error;
         const isTimeout = error.code === 'ECONNABORTED' || 
