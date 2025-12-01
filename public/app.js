@@ -52,7 +52,7 @@ async function loadTracks() {
         const tracks = await response.json();
         
         if (tracks.length === 0) {
-            tracksGrid.innerHTML = '<div class="loading">No hay tracks disponibles</div>';
+            tracksGrid.innerHTML = '<div class="empty-state"><div class="empty-state-title">No hay canciones</div><p>Ejecuta la sincronización para cargar tracks</p></div>';
             return;
         }
         
@@ -62,8 +62,8 @@ async function loadTracks() {
                 <div class="track-name">${track.name}</div>
                 <div class="track-artist">${track.artists?.join(', ') || track.artist_main}</div>
                 <div class="track-info">
-                    <span class="track-bpm">${track.bpm ? Math.round(track.bpm) + ' BPM' : 'N/A'}</span>
-                    ${track.preview_url ? `<audio controls class="track-preview"><source src="${track.preview_url}" type="audio/mpeg"></audio>` : ''}
+                    <span class="track-bpm">${track.bpm ? Math.round(track.bpm) + ' BPM' : '—'}</span>
+                    ${track.preview_url ? `<audio controls class="track-preview"><source src="${track.preview_url}" type="audio/mpeg"></audio>` : '<span style="color: var(--text-secondary); font-size: 0.85rem;">Sin preview</span>'}
                 </div>
             </div>
         `).join('');
@@ -83,7 +83,7 @@ async function loadArtists() {
         const artists = await response.json();
         
         if (artists.length === 0) {
-            artistsGrid.innerHTML = '<div class="loading">No hay artistas disponibles</div>';
+            artistsGrid.innerHTML = '<div class="empty-state"><div class="empty-state-title">No hay artistas</div><p>Ejecuta la sincronización para cargar artistas</p></div>';
             return;
         }
         
@@ -99,7 +99,7 @@ async function loadArtists() {
         artistsGrid.innerHTML = artistsWithTracks.map(artist => `
             <div class="artist-card" onclick="loadArtistTracks('${artist.name}')">
                 <div class="artist-name">${artist.name}</div>
-                <div class="artist-tracks">${artist.trackCount} tracks</div>
+                <div class="artist-tracks">${artist.trackCount} ${artist.trackCount === 1 ? 'canción' : 'canciones'}</div>
             </div>
         `).join('');
     } catch (error) {
@@ -131,19 +131,19 @@ async function loadMetrics() {
             </div>
         `;
         
-        if (metrics.avg_bpm_by_artist) {
+        if (metrics.avg_bpm_by_artist && Object.keys(metrics.avg_bpm_by_artist).length > 0) {
             html += `
                 <div class="metric-section">
                     <div class="metric-title">BPM Promedio por Artista</div>
-                    ${Object.entries(metrics.avg_bpm_by_artist)
-                        .map(([artist, bpm]) => `
-                            <div style="margin-bottom: 1rem;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                    <span>${artist}</span>
-                                    <span style="color: #1db954; font-weight: 600;">${Math.round(bpm)} BPM</span>
+                    <div class="bpm-list">
+                        ${Object.entries(metrics.avg_bpm_by_artist)
+                            .map(([artist, bpm]) => `
+                                <div class="bpm-item">
+                                    <span class="bpm-artist">${artist}</span>
+                                    <span class="bpm-value">${Math.round(bpm)} BPM</span>
                                 </div>
-                            </div>
-                        `).join('')}
+                            `).join('')}
+                    </div>
                 </div>
             `;
         }
@@ -192,26 +192,28 @@ document.getElementById('searchInput')?.addEventListener('input', (e) => {
 document.getElementById('syncBtn')?.addEventListener('click', async () => {
     const btn = document.getElementById('syncBtn');
     btn.disabled = true;
-    btn.textContent = '⏳ Sincronizando...';
+    btn.textContent = 'Sincronizando...';
     
     try {
         const response = await fetch(`${API_BASE}/api/cron`);
         if (response.ok) {
-            alert('✅ Sincronización iniciada. Revisa los logs en Vercel para ver el progreso.');
             // Esperar un poco y luego refrescar
             setTimeout(() => {
                 loadStats();
-                loadTracks();
-            }, 3000);
+                const activeTab = document.querySelector('.tab.active');
+                if (activeTab?.dataset.tab === 'tracks') {
+                    loadTracks();
+                }
+            }, 2000);
         } else {
-            alert('❌ Error al iniciar sincronización');
+            alert('Error al iniciar sincronización');
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('❌ Error al iniciar sincronización');
+        alert('Error al iniciar sincronización');
     } finally {
         btn.disabled = false;
-        btn.textContent = '🔄 Sincronizar';
+        btn.textContent = 'Sincronizar';
     }
 });
 
