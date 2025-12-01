@@ -30,6 +30,12 @@ export class SupabaseService {
       );
 
       console.log(`   Guardando ${uniqueTracks.length} tracks únicos (de ${tracks.length} totales)`);
+      
+      // Verificar que los géneros se están guardando
+      const tracksWithGenres = uniqueTracks.filter(t => t.genres && t.genres.length > 0);
+      if (tracksWithGenres.length > 0) {
+        console.log(`   🎵 ${tracksWithGenres.length} tracks tienen géneros asignados`);
+      }
 
       // Hacer upsert en batches de 50 para evitar problemas
       const batchSize = 50;
