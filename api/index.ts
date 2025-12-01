@@ -11,26 +11,43 @@ const app = express();
 
 app.use(express.json());
 
-// Serve static files from public directory - MUST BE FIRST
+// Serve static files from public directory
 const publicPath = path.join(process.cwd(), 'public');
 app.use(express.static(publicPath));
 
-// API Routes
+// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Root endpoint - serve HTML
+app.get('/', (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
+});
+
+// Tracks endpoints
 app.get('/tracks', getAllTracks);
 app.get('/tracks/:id', getTrackById);
 
+// Artists endpoints
 app.get('/artists', getAllArtists);
 app.get('/artists/:name/tracks', getArtistTracks);
 
+// Metrics endpoints
 app.get('/metrics/global', getGlobalMetrics);
 app.get('/metrics/artist/:name', getArtistMetrics);
 
-// Root endpoint - serve HTML
-app.get('/', (req, res) => {
+// Catch-all for SPA - serve index.html for any non-API routes
+app.get('*', (req, res, next) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/') || 
+      req.path.startsWith('/tracks') || 
+      req.path.startsWith('/artists') || 
+      req.path.startsWith('/metrics') ||
+      req.path.startsWith('/health')) {
+    return next();
+  }
+  // Serve index.html for all other routes (SPA routing)
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 
