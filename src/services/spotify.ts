@@ -23,7 +23,7 @@ export class SpotifyService {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 10000,
+      timeout: 20000, // Aumentado a 20 segundos
     });
   }
 
@@ -35,38 +35,59 @@ export class SpotifyService {
       return this.accessToken;
     }
 
-    try {
-      const clientId = process.env.SPOTIFY_CLIENT_ID!;
-      const clientSecret = process.env.SPOTIFY_CLIENT_SECRET!;
+    const clientId = process.env.SPOTIFY_CLIENT_ID!;
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET!;
+    const maxRetries = 3;
+    let lastError: any;
 
-      const response = await axios.post(
-        'https://accounts.spotify.com/api/token',
-        new URLSearchParams({
-          grant_type: 'client_credentials',
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: `Basic ${Buffer.from(
-              `${clientId}:${clientSecret}`
-            ).toString('base64')}`,
-          },
-          timeout: 10000,
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Intentando obtener token de Spotify (intento ${attempt}/${maxRetries})...`);
+        
+        const response = await axios.post(
+          'https://accounts.spotify.com/api/token',
+          new URLSearchParams({
+            grant_type: 'client_credentials',
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              Authorization: `Basic ${Buffer.from(
+                `${clientId}:${clientSecret}`
+              ).toString('base64')}`,
+            },
+            timeout: 20000, // Aumentado a 20 segundos
+          }
+        );
+
+        this.accessToken = response.data.access_token;
+        this.tokenExpiresAt = Date.now() + (response.data.expires_in - 300) * 1000;
+
+        if (!this.accessToken) {
+          throw new Error('No se recibió token de acceso de Spotify');
         }
-      );
 
-      this.accessToken = response.data.access_token;
-      this.tokenExpiresAt = Date.now() + (response.data.expires_in - 300) * 1000;
-
-      if (!this.accessToken) {
-        throw new Error('No se recibió token de acceso de Spotify');
+        console.log('✅ Token de Spotify obtenido exitosamente');
+        return this.accessToken;
+      } catch (error: any) {
+        lastError = error;
+        const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+        
+        if (isTimeout && attempt < maxRetries) {
+          const waitTime = attempt * 2000; // Esperar 2s, 4s, 6s...
+          console.warn(`Timeout obteniendo token. Esperando ${waitTime}ms antes de reintentar...`);
+          await this.sleep(waitTime);
+          continue;
+        }
+        
+        if (attempt === maxRetries) {
+          console.error(`Error obteniendo token de Spotify después de ${maxRetries} intentos:`, error);
+          throw new Error(`No se pudo obtener el token de acceso de Spotify después de ${maxRetries} intentos: ${error.message}`);
+        }
       }
-
-      return this.accessToken;
-    } catch (error) {
-      console.error('Error obteniendo token de Spotify:', error);
-      throw new Error('No se pudo obtener el token de acceso de Spotify');
     }
+
+    throw new Error('No se pudo obtener el token de acceso de Spotify');
   }
 
   /**
