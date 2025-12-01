@@ -38,10 +38,13 @@ export class SyncService {
         console.log(`   ✅ Artista encontrado: ${artist.name} (ID: ${artist.id})`);
 
         // 2. Obtener información completa del artista (para géneros)
+        console.log(`   📋 Obteniendo información completa del artista...`);
         const fullArtistInfo = await this.spotify.getArtist(artist.id);
         const artistGenres = fullArtistInfo.genres;
+        console.log(`   ✅ Géneros obtenidos: ${artistGenres.length > 0 ? artistGenres.join(', ') : 'ninguno'}`);
 
         // 3. Obtener los top 5 tracks
+        console.log(`   🎵 Obteniendo top tracks del artista...`);
         const tracks = await this.spotify.getArtistTopTracks(artist.id);
         console.log(`   📦 Encontrados ${tracks.length} tracks`);
 
@@ -52,6 +55,7 @@ export class SyncService {
 
         // 4. Obtener audio features (BPM) para todos los tracks
         const trackIds = tracks.map((t) => t.id);
+        console.log(`   🎚️  Obteniendo audio features (BPM) para ${trackIds.length} tracks...`);
         let audioFeaturesMap = new Map<string, number>();
         try {
           const audioFeatures = await this.spotify.getAudioFeatures(trackIds);
@@ -68,6 +72,7 @@ export class SyncService {
         }
 
         // 5. Procesar cada track
+        console.log(`   🔄 Procesando ${tracks.length} tracks...`);
         for (const track of tracks) {
           const bpm = audioFeaturesMap.get(track.id) || null;
           const previewUrl = track.preview_url || null;
