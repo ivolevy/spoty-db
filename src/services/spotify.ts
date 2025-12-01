@@ -182,6 +182,20 @@ export class SpotifyService {
           continue;
         }
 
+        // Forbidden (403) - puede ser por permisos o porque el recurso no está disponible
+        if (axiosError.response?.status === 403) {
+          const errorData = axiosError.response.data as any;
+          const errorMsg = errorData?.error?.message || 'Forbidden';
+          console.warn(`⚠️  403 Forbidden en ${url}: ${errorMsg}`);
+          // No reintentar para 403, lanzar error directamente
+          throw new Error(`403 Forbidden: ${errorMsg}`);
+        }
+
+        // Not Found (404) - recurso no existe
+        if (axiosError.response?.status === 404) {
+          throw new Error(`404 Not Found: El recurso no existe`);
+        }
+
         // Timeout
         if (axiosError.code === 'ECONNABORTED' || axiosError.message.includes('timeout')) {
           console.error(`Timeout en petición a ${url}. Reintentando...`);
@@ -346,10 +360,15 @@ export class SpotifyService {
               }
               // Pequeña pausa para evitar rate limits
               await this.sleep(100);
-            } catch (err) {
-              // Si falla individual, simplemente continuar sin BPM para ese track
-              console.warn(`     ⚠️  No se pudo obtener BPM para track ${trackId}`);
-            }
+        } catch (err: any) {
+          // Si falla individual, mostrar más detalles del error
+          const errorMsg = err.response?.status === 403 
+            ? '403 Forbidden (puede requerir permisos especiales o el track no tiene audio features)'
+            : err.response?.status === 404
+            ? '404 Not Found (track no tiene audio features disponibles)'
+            : err.message || 'Error desconocido';
+          console.warn(`     ⚠️  No se pudo obtener BPM para track ${trackId}: ${errorMsg}`);
+        }
           }
         }
       }

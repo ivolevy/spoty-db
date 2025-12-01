@@ -56,8 +56,12 @@ export class SyncService {
           audioFeaturesMap = new Map(
             audioFeatures.map((af) => [af.id, af.tempo])
           );
+          if (audioFeaturesMap.size > 0) {
+            console.log(`   ✅ Obtenidos ${audioFeaturesMap.size} BPM de ${trackIds.length} tracks`);
+          }
         } catch (error: any) {
-          console.warn(`   ⚠️  Error obteniendo audio features, continuando sin BPM:`, error.message);
+          console.warn(`   ⚠️  No se pudieron obtener BPM (403 Forbidden - puede requerir permisos especiales en Spotify Dashboard)`);
+          console.warn(`   ℹ️  Continuando sin BPM. Las tracks se guardarán igual.`);
           // Continuar sin BPM si falla
         }
 

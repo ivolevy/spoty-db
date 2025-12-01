@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "sync": "tsx scripts/cron-sync.ts",
     "setup-db": "tsx scripts/setup-database.ts",
-    "test-spotify": "tsx scripts/test-spotify-credentials.ts"
+    "test-spotify": "tsx scripts/test-spotify-credentials.ts",
+    "test-audio": "tsx scripts/test-audio-features.ts"
   },
   "keywords": ["spotify", "supabase", "sync"],
   "author": "",
