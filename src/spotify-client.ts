@@ -43,6 +43,7 @@ export class SpotifyClient {
               `${config.spotify.clientId}:${config.spotify.clientSecret}`
             ).toString('base64')}`,
           },
+          timeout: 10000, // 10 segundos de timeout
         }
       );
 
