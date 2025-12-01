@@ -202,10 +202,12 @@ export class SpotifyService {
   }
 
   /**
-   * Busca un artista por nombre y retorna el más popular
+   * Busca un artista por nombre y retorna el más popular que coincida exactamente
    */
   async searchArtist(name: string): Promise<SpotifyArtist | null> {
     try {
+      // Buscar con comillas para coincidencia exacta primero
+      const exactQuery = `artist:"${name}"`;
       const response = await this.makeRequest<{
         artists: {
           items: Array<{
@@ -216,20 +218,78 @@ export class SpotifyService {
           }>;
         };
       }>('get', '/search', {
-        q: name,
+        q: exactQuery,
         type: 'artist',
-        limit: 10,
+        limit: 20,
       });
 
       if (response.artists.items.length === 0) {
-        return null;
+        // Si no hay resultados exactos, buscar sin comillas
+        const fallbackResponse = await this.makeRequest<{
+          artists: {
+            items: Array<{
+              id: string;
+              name: string;
+              popularity: number;
+              genres: string[];
+            }>;
+          };
+        }>('get', '/search', {
+          q: name,
+          type: 'artist',
+          limit: 20,
+        });
+
+        if (fallbackResponse.artists.items.length === 0) {
+          return null;
+        }
+
+        // Buscar coincidencia exacta (case insensitive) en los resultados
+        const exactMatch = fallbackResponse.artists.items.find(
+          (a) => a.name.toLowerCase() === name.toLowerCase()
+        );
+
+        if (exactMatch) {
+          return {
+            id: exactMatch.id,
+            name: exactMatch.name,
+            popularity: exactMatch.popularity,
+            genres: exactMatch.genres,
+          };
+        }
+
+        // Si no hay coincidencia exacta, elegir el más popular
+        const sortedArtists = fallbackResponse.artists.items.sort(
+          (a, b) => b.popularity - a.popularity
+        );
+        const topArtist = sortedArtists[0];
+
+        return {
+          id: topArtist.id,
+          name: topArtist.name,
+          popularity: topArtist.popularity,
+          genres: topArtist.genres,
+        };
       }
 
-      // Elegir el resultado con mayor popularity
+      // Si hay resultados con búsqueda exacta, buscar coincidencia exacta primero
+      const exactMatch = response.artists.items.find(
+        (a) => a.name.toLowerCase() === name.toLowerCase()
+      );
+
+      if (exactMatch) {
+        return {
+          id: exactMatch.id,
+          name: exactMatch.name,
+          popularity: exactMatch.popularity,
+          genres: exactMatch.genres,
+        };
+      }
+
+      // Si no hay coincidencia exacta, elegir el más popular
       const sortedArtists = response.artists.items.sort(
         (a, b) => b.popularity - a.popularity
       );
-
       const topArtist = sortedArtists[0];
 
       return {
