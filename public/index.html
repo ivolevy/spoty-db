@@ -15,17 +15,11 @@
     <div class="container">
         <header>
             <div class="logo">
-                <img src="logo.png" alt="Spotify" class="logo-img">
+                <img src="logo.png" alt="spoty" class="logo-img">
             </div>
             <div class="header-actions">
-                <button class="btn btn-primary" id="syncBtn">
-                    <span class="btn-icon">🔄</span>
-                    Sincronizar
-                </button>
-                <button class="btn btn-secondary" id="refreshBtn">
-                    <span class="btn-icon">↻</span>
-                    Actualizar
-                </button>
+                <button class="btn" id="syncBtn">Sincronizar</button>
+                <button class="btn" id="refreshBtn">Actualizar</button>
             </div>
         </header>
 
@@ -55,24 +49,18 @@
             </div>
 
             <div class="tabs">
-                <button class="tab active" data-tab="tracks">
-                    <span>🎵</span> Canciones
-                </button>
-                <button class="tab" data-tab="artists">
-                    <span>👤</span> Artistas
-                </button>
-                <button class="tab" data-tab="metrics">
-                    <span>📊</span> Estadísticas
-                </button>
+                <button class="tab active" data-tab="tracks">Canciones</button>
+                <button class="tab" data-tab="artists">Artistas</button>
+                <button class="tab" data-tab="metrics">Estadísticas</button>
             </div>
 
             <div class="content">
                 <div class="tab-content active" id="tracksTab">
                     <div class="search-bar">
-                        <input type="text" id="searchInput" placeholder="Buscar canciones..." class="search-input">
+                        <input type="text" id="searchInput" placeholder="Buscar tracks..." class="search-input">
                     </div>
                     <div class="tracks-grid" id="tracksGrid">
-                        <div class="loading">Cargando canciones...</div>
+                        <div class="loading">Cargando tracks...</div>
                     </div>
                 </div>
 
@@ -84,7 +72,7 @@
 
                 <div class="tab-content" id="metricsTab">
                     <div class="metrics-container" id="metricsContainer">
-                        <div class="loading">Cargando estadísticas...</div>
+                        <div class="loading">Cargando métricas...</div>
                     </div>
                 </div>
             </div>
@@ -94,3 +82,4 @@
     <script src="app.js"></script>
 </body>
 </html>
+

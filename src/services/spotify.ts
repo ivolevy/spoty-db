@@ -8,6 +8,7 @@ import {
 export class SpotifyService {
   private accessToken: string | null = null;
   private tokenExpiresAt: number = 0;
+  private userAccessToken: string | null = null; // Token de usuario para obtener BPM
   private axiosInstance: AxiosInstance;
 
   constructor() {
@@ -25,12 +26,39 @@ export class SpotifyService {
       },
       timeout: 20000, // Aumentado a 20 segundos
     });
+
+    // Si hay un token de usuario en las variables de entorno, usarlo
+    if (process.env.SPOTIFY_USER_TOKEN) {
+      this.userAccessToken = process.env.SPOTIFY_USER_TOKEN;
+      console.log('✅ Token de usuario cargado desde variables de entorno');
+    }
+  }
+
+  /**
+   * Establece un token de acceso de usuario (para obtener BPM)
+   */
+  setUserToken(token: string) {
+    this.userAccessToken = token;
+  }
+
+  /**
+   * Obtiene el token de usuario si está disponible
+   */
+  getUserToken(): string | null {
+    return this.userAccessToken;
   }
 
   /**
    * Obtiene un token de acceso usando Client Credentials Flow
+   * Si hay un token de usuario disponible, lo usa para endpoints que lo requieren
    */
-  private async getAccessToken(): Promise<string> {
+  private async getAccessToken(useUserToken: boolean = false): Promise<string> {
+    // Si se solicita usar token de usuario y está disponible, usarlo
+    if (useUserToken && this.userAccessToken) {
+      return this.userAccessToken;
+    }
+
+    // Si hay token válido de Client Credentials, usarlo
     if (this.accessToken && Date.now() < this.tokenExpiresAt) {
       return this.accessToken;
     }
@@ -137,9 +165,10 @@ export class SpotifyService {
   private async makeRequest<T>(
     method: 'get' | 'post',
     url: string,
-    params?: Record<string, any>
+    params?: Record<string, any>,
+    useUserToken: boolean = false
   ): Promise<T> {
-    const token = await this.getAccessToken();
+    const token = await this.getAccessToken(useUserToken);
     let retries = 0;
     const maxRetries = 5;
 
@@ -321,6 +350,7 @@ export class SpotifyService {
 
       for (const chunk of chunks) {
         try {
+          // Intentar con token de usuario si está disponible (necesario para audio-features)
           const response = await this.makeRequest<{
             audio_features: Array<{
               id: string;
@@ -329,7 +359,7 @@ export class SpotifyService {
             } | null>;
           }>('get', '/audio-features', {
             ids: chunk.join(','),
-          });
+          }, true); // useUserToken = true para audio-features
 
           const features = response.audio_features
             .filter((f): f is NonNullable<typeof f> => f !== null)
@@ -349,7 +379,7 @@ export class SpotifyService {
                 id: string;
                 tempo: number;
                 duration_ms: number;
-              }>('get', `/audio-features/${trackId}`);
+              }>('get', `/audio-features/${trackId}`, undefined, true); // useUserToken = true
               
               if (individualResponse && individualResponse.tempo) {
                 results.push({
@@ -381,7 +411,7 @@ export class SpotifyService {
             id: string;
             tempo: number;
             duration_ms: number;
-          }>('get', `/audio-features/${trackId}`);
+          }>('get', `/audio-features/${trackId}`, undefined, true); // useUserToken = true
           
           if (response && response.tempo) {
             results.push({

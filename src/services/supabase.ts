@@ -29,30 +29,13 @@ export class SupabaseService {
         new Map(tracks.map(track => [track.spotify_id, track])).values()
       );
 
-      const duplicatesRemoved = tracks.length - uniqueTracks.length;
-      if (duplicatesRemoved > 0) {
-        console.log(`   ⚠️  Se encontraron ${duplicatesRemoved} tracks duplicados en esta sincronización (mismo spotify_id)`);
-      }
-
-      console.log(`   💾 Procesando ${uniqueTracks.length} tracks únicos para guardar/actualizar en Supabase`);
-      
-      // Verificar que los géneros se están guardando
-      const tracksWithGenres = uniqueTracks.filter(t => t.genres && t.genres.length > 0);
-      if (tracksWithGenres.length > 0) {
-        console.log(`   🎵 ${tracksWithGenres.length} tracks tienen géneros asignados`);
-      }
-
-      // Obtener count actual antes del upsert
-      const { count: countBefore } = await this.client
-        .from('artist_tracks')
-        .select('*', { count: 'exact', head: true });
+      console.log(`   Guardando ${uniqueTracks.length} tracks únicos (de ${tracks.length} totales)`);
 
       // Hacer upsert en batches de 50 para evitar problemas
       const batchSize = 50;
-      let savedCount = 0;
       for (let i = 0; i < uniqueTracks.length; i += batchSize) {
         const batch = uniqueTracks.slice(i, i + batchSize);
-        const { error, data } = await this.client
+        const { error } = await this.client
           .from('artist_tracks')
           .upsert(
             batch.map((track) => ({
@@ -77,18 +60,7 @@ export class SupabaseService {
         if (error) {
           throw error;
         }
-        
-        savedCount += batch.length;
-        console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1}: ${batch.length} tracks procesados (${savedCount}/${uniqueTracks.length})`);
       }
-
-      // Obtener count después del upsert
-      const { count: countAfter } = await this.client
-        .from('artist_tracks')
-        .select('*', { count: 'exact', head: true });
-
-      console.log(`   📊 Total en Supabase: ${countBefore || 0} → ${countAfter || 0} tracks`);
-      console.log(`   ✅ ${uniqueTracks.length} tracks procesados exitosamente (insertados nuevos o actualizados existentes)`);
     } catch (error) {
       console.error('Error haciendo upsert de tracks:', error);
       throw error;
@@ -100,49 +72,16 @@ export class SupabaseService {
    */
   async getAllTracks(): Promise<any[]> {
     try {
-      // Primero obtener el count total
-      const { count: totalCount } = await this.client
-        .from('artist_tracks')
-        .select('*', { count: 'exact', head: true });
-
-      console.log(`📊 Total tracks en DB según count: ${totalCount || 0}`);
-
-      // Obtener todos los tracks, ordenando por fetched_at pero incluyendo NULLs
-      // Usamos nullsFirst para que los tracks sin fetched_at también aparezcan
       const { data, error } = await this.client
         .from('artist_tracks')
         .select('*')
-        .order('fetched_at', { ascending: false, nullsFirst: false })
-        .order('id', { ascending: false }); // Orden secundario por ID para consistencia
+        .order('fetched_at', { ascending: false });
 
       if (error) {
         throw error;
       }
 
-      const tracks = data || [];
-      console.log(`📊 Tracks devueltos por query: ${tracks.length} (esperados: ${totalCount || 0})`);
-
-      // Si hay diferencia, intentar obtener sin ordenamiento para debug
-      if (totalCount && tracks.length < totalCount) {
-        console.warn(`⚠️  Advertencia: Se esperaban ${totalCount} tracks pero se devolvieron ${tracks.length}`);
-        // Intentar obtener todos sin ordenamiento
-        const { data: allData, error: allError } = await this.client
-          .from('artist_tracks')
-          .select('*');
-
-        if (!allError && allData) {
-          console.log(`📊 Tracks sin ordenamiento: ${allData.length}`);
-          // Ordenar manualmente
-          return allData.sort((a: any, b: any) => {
-            if (!a.fetched_at && !b.fetched_at) return 0;
-            if (!a.fetched_at) return 1;
-            if (!b.fetched_at) return -1;
-            return new Date(b.fetched_at).getTime() - new Date(a.fetched_at).getTime();
-          });
-        }
-      }
-
-      return tracks;
+      return data || [];
     } catch (error) {
       console.error('Error obteniendo tracks:', error);
       throw error;
@@ -200,55 +139,31 @@ export class SupabaseService {
   }
 
   /**
-   * Obtiene todos los artistas únicos que tienen tracks
+   * Obtiene todos los artistas únicos
    */
   async getAllArtists(): Promise<Array<{ name: string; id: string }>> {
     try {
-      // Obtener artistas únicos con conteo de tracks
       const { data, error } = await this.client
         .from('artist_tracks')
-        .select('artist_main')
-        .not('artist_main', 'is', null);
+        .select('artist_main, artists')
+        .order('artist_main');
 
       if (error) {
         throw error;
       }
 
-      // Contar tracks por artista y solo incluir artistas con tracks
-      const artistCountMap = new Map<string, number>();
+      // Obtener artistas únicos
+      const artistMap = new Map<string, string>();
 
       (data || []).forEach((track: any) => {
-        if (track.artist_main) {
-          artistCountMap.set(
-            track.artist_main,
-            (artistCountMap.get(track.artist_main) || 0) + 1
-          );
+        if (track.artist_main && !artistMap.has(track.artist_main)) {
+          // Buscar el ID del artista principal en el array de artists
+          // Por ahora usamos el nombre como ID, ya que no tenemos el spotify_id del artista guardado
+          artistMap.set(track.artist_main, track.artist_main);
         }
       });
 
-      // Filtrar solo artistas que tienen al menos 1 track
-      const artists = Array.from(artistCountMap.entries())
-        .filter(([, count]) => count > 0)
-        .map(([name, count]) => ({ name, id: name, trackCount: count }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      console.log(`📊 Artistas encontrados con tracks: ${artists.length}`);
-      if (artists.length > 0) {
-        artists.forEach(artist => {
-          console.log(`   - ${artist.name}: ${artist.trackCount} tracks`);
-        });
-      } else {
-        console.log(`   ⚠️  No se encontraron artistas con tracks en la base de datos`);
-      }
-
-      // Validación adicional: asegurarse de que solo devolvemos artistas con tracks
-      const validArtists = artists.filter(artist => artist.trackCount > 0);
-      
-      if (validArtists.length !== artists.length) {
-        console.warn(`⚠️  Se filtraron ${artists.length - validArtists.length} artistas sin tracks`);
-      }
-
-      return validArtists.map(({ name, id }) => ({ name, id }));
+      return Array.from(artistMap.entries()).map(([name, id]) => ({ name, id }));
     } catch (error) {
       console.error('Error obteniendo artistas:', error);
       throw error;

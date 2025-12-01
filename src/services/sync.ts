@@ -37,13 +37,7 @@ export class SyncService {
 
         // 2. Obtener información completa del artista (para géneros)
         const fullArtistInfo = await this.spotify.getArtist(artist.id);
-        const artistGenres = fullArtistInfo.genres || [];
-        
-        if (artistGenres.length > 0) {
-          console.log(`   🎵 Géneros del artista: ${artistGenres.join(', ')}`);
-        } else {
-          console.warn(`   ⚠️  No se encontraron géneros para ${artistName}`);
-        }
+        const artistGenres = fullArtistInfo.genres;
 
         // 3. Obtener los top 5 tracks
         const tracks = await this.spotify.getArtistTopTracks(artist.id);
@@ -96,11 +90,10 @@ export class SyncService {
           allTracks.push(trackData);
           
           // Log para debugging
-          const genreInfo = artistGenres.length > 0 ? ` [${artistGenres.slice(0, 2).join(', ')}${artistGenres.length > 2 ? '...' : ''}]` : '';
           if (bpm) {
-            console.log(`     ✅ ${track.name}: ${Math.round(bpm)} BPM${genreInfo}${previewUrl ? ' + preview' : ''}`);
+            console.log(`     ✅ ${track.name}: ${Math.round(bpm)} BPM${previewUrl ? ' + preview' : ''}`);
           } else {
-            console.log(`     ⚠️  ${track.name}: Sin BPM${genreInfo}${previewUrl ? ' (tiene preview)' : ' (sin preview)'}`);
+            console.log(`     ⚠️  ${track.name}: Sin BPM${previewUrl ? ' (tiene preview)' : ' (sin preview)'}`);
           }
         }
 
