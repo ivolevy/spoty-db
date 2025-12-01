@@ -35,7 +35,6 @@ body {
     height: var(--top-nav-height);
     z-index: 1000;
     background: var(--bg-dark);
-    border-bottom: 1px solid var(--border);
 }
 
 .nav-banner {
@@ -44,67 +43,62 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 2rem;
+    padding: 0 1.5rem;
+    border-radius: 0;
 }
 
 .nav-logo-section {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
 }
 
-.nav-logo-icon {
-    width: 24px;
-    height: 24px;
-    color: #000;
+.nav-logo-img {
+    height: 32px;
+    width: auto;
+    object-fit: contain;
 }
 
-.nav-logo-text {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #000;
-    letter-spacing: -0.01em;
-}
-
-.nav-actions {
+.nav-user-section {
     display: flex;
-    gap: 1rem;
     align-items: center;
 }
 
-.nav-connect-btn {
+.nav-user-profile {
     background: #000;
-    color: #fff;
-    border: none;
-    padding: 0.5rem 1.25rem;
     border-radius: 20px;
-    font-weight: 500;
+    padding: 0.375rem 0.75rem 0.375rem 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 0.9rem;
-    font-family: inherit;
 }
 
-.nav-connect-btn:hover {
+.nav-user-profile:hover {
     background: rgba(0, 0, 0, 0.8);
-    transform: scale(1.05);
 }
 
-.nav-sync-btn {
-    background: rgba(0, 0, 0, 0.2);
-    color: #000;
-    border: 1px solid rgba(0, 0, 0, 0.3);
-    padding: 0.5rem 1.25rem;
-    border-radius: 20px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
+.nav-user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.nav-user-text {
+    color: #fff;
     font-size: 0.9rem;
-    font-family: inherit;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
-.nav-sync-btn:hover {
-    background: rgba(0, 0, 0, 0.3);
+.nav-user-chevron {
+    width: 16px;
+    height: 16px;
+    color: #fff;
+    flex-shrink: 0;
 }
 
 /* Main Container */
@@ -191,6 +185,29 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+}
+
+.page-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.btn-action {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-action:hover {
+    border-color: var(--green);
+    color: var(--green);
 }
 
 .page-title {
