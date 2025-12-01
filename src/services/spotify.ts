@@ -202,12 +202,10 @@ export class SpotifyService {
   }
 
   /**
-   * Busca un artista por nombre y retorna el más popular que coincida exactamente
+   * Busca un artista por nombre y retorna el más popular
    */
   async searchArtist(name: string): Promise<SpotifyArtist | null> {
     try {
-      // Buscar con comillas para coincidencia exacta primero
-      const exactQuery = `artist:"${name}"`;
       const response = await this.makeRequest<{
         artists: {
           items: Array<{
@@ -218,78 +216,20 @@ export class SpotifyService {
           }>;
         };
       }>('get', '/search', {
-        q: exactQuery,
+        q: name,
         type: 'artist',
-        limit: 20,
+        limit: 10,
       });
 
       if (response.artists.items.length === 0) {
-        // Si no hay resultados exactos, buscar sin comillas
-        const fallbackResponse = await this.makeRequest<{
-          artists: {
-            items: Array<{
-              id: string;
-              name: string;
-              popularity: number;
-              genres: string[];
-            }>;
-          };
-        }>('get', '/search', {
-          q: name,
-          type: 'artist',
-          limit: 20,
-        });
-
-        if (fallbackResponse.artists.items.length === 0) {
-          return null;
-        }
-
-        // Buscar coincidencia exacta (case insensitive) en los resultados
-        const exactMatch = fallbackResponse.artists.items.find(
-          (a) => a.name.toLowerCase() === name.toLowerCase()
-        );
-
-        if (exactMatch) {
-          return {
-            id: exactMatch.id,
-            name: exactMatch.name,
-            popularity: exactMatch.popularity,
-            genres: exactMatch.genres,
-          };
-        }
-
-        // Si no hay coincidencia exacta, elegir el más popular
-        const sortedArtists = fallbackResponse.artists.items.sort(
-          (a, b) => b.popularity - a.popularity
-        );
-        const topArtist = sortedArtists[0];
-
-        return {
-          id: topArtist.id,
-          name: topArtist.name,
-          popularity: topArtist.popularity,
-          genres: topArtist.genres,
-        };
+        return null;
       }
 
-      // Si hay resultados con búsqueda exacta, buscar coincidencia exacta primero
-      const exactMatch = response.artists.items.find(
-        (a) => a.name.toLowerCase() === name.toLowerCase()
-      );
-
-      if (exactMatch) {
-        return {
-          id: exactMatch.id,
-          name: exactMatch.name,
-          popularity: exactMatch.popularity,
-          genres: exactMatch.genres,
-        };
-      }
-
-      // Si no hay coincidencia exacta, elegir el más popular
+      // Elegir el resultado con mayor popularity
       const sortedArtists = response.artists.items.sort(
         (a, b) => b.popularity - a.popularity
       );
+
       const topArtist = sortedArtists[0];
 
       return {
@@ -355,38 +295,86 @@ export class SpotifyService {
       return [];
     }
 
-    // Spotify permite hasta 100 IDs por request
-    const chunks: string[][] = [];
-    for (let i = 0; i < trackIds.length; i += 100) {
-      chunks.push(trackIds.slice(i, i + 100));
-    }
-
     const results: SpotifyAudioFeatures[] = [];
 
-    for (const chunk of chunks) {
-      try {
-        const response = await this.makeRequest<{
-          audio_features: Array<{
+    // Intentar primero con batch (más eficiente)
+    try {
+      // Spotify permite hasta 100 IDs por request
+      const chunks: string[][] = [];
+      for (let i = 0; i < trackIds.length; i += 100) {
+        chunks.push(trackIds.slice(i, i + 100));
+      }
+
+      for (const chunk of chunks) {
+        try {
+          const response = await this.makeRequest<{
+            audio_features: Array<{
+              id: string;
+              tempo: number;
+              duration_ms: number;
+            } | null>;
+          }>('get', '/audio-features', {
+            ids: chunk.join(','),
+          });
+
+          const features = response.audio_features
+            .filter((f): f is NonNullable<typeof f> => f !== null)
+            .map((f) => ({
+              id: f.id,
+              tempo: f.tempo,
+              duration_ms: f.duration_ms,
+            }));
+
+          results.push(...features);
+        } catch (error: any) {
+          // Si falla el batch, intentar individualmente para este chunk
+          console.warn(`   ⚠️  Error en batch de audio-features, intentando individualmente...`);
+          for (const trackId of chunk) {
+            try {
+              const individualResponse = await this.makeRequest<{
+                id: string;
+                tempo: number;
+                duration_ms: number;
+              }>('get', `/audio-features/${trackId}`);
+              
+              if (individualResponse && individualResponse.tempo) {
+                results.push({
+                  id: individualResponse.id,
+                  tempo: individualResponse.tempo,
+                  duration_ms: individualResponse.duration_ms,
+                });
+              }
+              // Pequeña pausa para evitar rate limits
+              await this.sleep(100);
+            } catch (err) {
+              // Si falla individual, simplemente continuar sin BPM para ese track
+              console.warn(`     ⚠️  No se pudo obtener BPM para track ${trackId}`);
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      console.warn(`   ⚠️  Error general obteniendo audio features:`, error.message);
+      // Si todo falla, intentar individualmente
+      for (const trackId of trackIds) {
+        try {
+          const response = await this.makeRequest<{
             id: string;
             tempo: number;
             duration_ms: number;
-          } | null>;
-        }>('get', '/audio-features', {
-          ids: chunk.join(','),
-        });
-
-        const features = response.audio_features
-          .filter((f): f is NonNullable<typeof f> => f !== null)
-          .map((f) => ({
-            id: f.id,
-            tempo: f.tempo,
-            duration_ms: f.duration_ms,
-          }));
-
-        results.push(...features);
-      } catch (error) {
-        console.error(`Error obteniendo audio features:`, error);
-        // Continuar con los siguientes chunks aunque falle uno
+          }>('get', `/audio-features/${trackId}`);
+          
+          if (response && response.tempo) {
+            results.push({
+              id: response.id,
+              tempo: response.tempo,
+              duration_ms: response.duration_ms,
+            });
+          }
+          await this.sleep(100);
+        } catch (err) {
+          // Continuar sin BPM para ese track
+        }
       }
     }
 

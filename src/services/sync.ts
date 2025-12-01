@@ -63,6 +63,9 @@ export class SyncService {
 
         // 5. Procesar cada track
         for (const track of tracks) {
+          const bpm = audioFeaturesMap.get(track.id) || null;
+          const previewUrl = track.preview_url || null;
+          
           const trackData: TrackData = {
             spotify_id: track.id,
             name: track.name,
@@ -71,9 +74,9 @@ export class SyncService {
             album: track.album.name,
             release_date: track.album.release_date || null,
             duration_ms: track.duration_ms,
-            bpm: audioFeaturesMap.get(track.id) || null,
+            bpm: bpm,
             genres: artistGenres,
-            preview_url: track.preview_url,
+            preview_url: previewUrl,
             cover_url:
               track.album.images && track.album.images.length > 0
                 ? track.album.images[0].url
@@ -81,6 +84,13 @@ export class SyncService {
           };
 
           allTracks.push(trackData);
+          
+          // Log para debugging
+          if (bpm) {
+            console.log(`     ✅ ${track.name}: ${Math.round(bpm)} BPM${previewUrl ? ' + preview' : ''}`);
+          } else {
+            console.log(`     ⚠️  ${track.name}: Sin BPM${previewUrl ? ' (tiene preview)' : ' (sin preview)'}`);
+          }
         }
 
         console.log(`   ✅ ${tracks.length} tracks procesados para ${artistName}`);
