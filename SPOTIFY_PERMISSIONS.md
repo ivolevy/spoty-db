@@ -54,9 +54,29 @@ En la página de tu app, verifica:
 
 El endpoint `/audio-features` puede estar restringido porque:
 
-1. **Requiere autenticación de usuario** (no solo Client Credentials)
-2. **Requiere permisos especiales** que no están disponibles en Client Credentials Flow
-3. **Puede estar bloqueado** para tu región o tipo de app
+1. **Tu app está en modo Desarrollo** - Las apps en desarrollo tienen restricciones y cuotas limitadas
+2. **Requiere extensión de cuota** - Puede necesitar solicitar acceso extendido en el Dashboard
+3. **Cambios en la API de Spotify** - Spotify puede haber cambiado los requisitos de acceso
+4. **Restricciones geográficas** - Algunos endpoints pueden estar bloqueados por región
+
+### Cómo Solucionarlo
+
+#### Opción 1: Verificar Modo de la App
+1. Ve a https://developer.spotify.com/dashboard
+2. Selecciona tu app
+3. Busca la sección "App Status" o "Quota"
+4. Si está en "Development Mode", puedes:
+   - Solicitar extensión de cuota
+   - O cambiar a "Production Mode" (si cumples requisitos)
+
+#### Opción 2: Solicitar Extensión de Cuota
+1. En el Dashboard, busca "Quota Extension" o "Request Extension"
+2. Explica tu caso de uso (obtener BPM de tracks)
+3. Spotify puede aprobar acceso extendido
+
+#### Opción 3: Verificar Documentación Actualizada
+- Revisa: https://developer.spotify.com/documentation/web-api/reference/get-audio-features
+- Verifica si hay cambios recientes en los requisitos
 
 ## Soluciones Posibles
 
