@@ -50,40 +50,39 @@ export class SpotifyService {
         const startTime = Date.now();
         console.log(`[${new Date().toISOString()}] Intentando obtener token de Spotify (intento ${attempt}/${maxRetries})...`);
         
-        // Crear un timeout manual más agresivo
+        // Usar fetch nativo con timeout más agresivo
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => {
+          console.log(`[${new Date().toISOString()}] Timeout alcanzado, abortando request...`);
+          controller.abort();
+        }, 5000); // 5 segundos máximo
         
         try {
-          const response = await axios.post(
-            'https://accounts.spotify.com/api/token',
-            new URLSearchParams({
-              grant_type: 'client_credentials',
-            }),
-            {
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                Authorization: `Basic ${Buffer.from(
-                  `${clientId}:${clientSecret}`
-                ).toString('base64')}`,
-              },
-              timeout: 8000,
-              validateStatus: (status) => status < 500,
-              signal: controller.signal,
-            }
-          );
+          const authString = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+          
+          const response = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': `Basic ${authString}`,
+            },
+            body: 'grant_type=client_credentials',
+            signal: controller.signal,
+          });
           
           clearTimeout(timeoutId);
           
           const elapsed = Date.now() - startTime;
           console.log(`[${new Date().toISOString()}] Respuesta recibida en ${elapsed}ms (status: ${response.status})`);
 
-          if (response.status !== 200) {
-            throw new Error(`Spotify API returned status ${response.status}: ${JSON.stringify(response.data)}`);
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Spotify API returned status ${response.status}: ${errorText}`);
           }
 
-          this.accessToken = response.data.access_token;
-          this.tokenExpiresAt = Date.now() + (response.data.expires_in - 300) * 1000;
+          const data = await response.json();
+          this.accessToken = data.access_token;
+          this.tokenExpiresAt = Date.now() + (data.expires_in - 300) * 1000;
 
           if (!this.accessToken) {
             throw new Error('No se recibió token de acceso de Spotify');
@@ -93,8 +92,8 @@ export class SpotifyService {
           return this.accessToken;
         } catch (err: any) {
           clearTimeout(timeoutId);
-          if (err.name === 'AbortError' || err.code === 'ECONNABORTED') {
-            throw new Error('Request timeout after 8s');
+          if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+            throw new Error('Request timeout after 5s');
           }
           throw err;
         }
