@@ -38,6 +38,7 @@ export class SpotifyCrawler {
 
     // Cargar IDs existentes para deduplicación (solo en modo normal)
     if (!config.crawler.testMode) {
+      console.log('📊 Cargando tracks existentes...');
       try {
         const timeoutPromise = new Promise<Set<string>>((resolve) => {
           setTimeout(() => resolve(new Set()), 3000);
@@ -52,6 +53,8 @@ export class SpotifyCrawler {
     } else {
       this.processedIds = new Set();
     }
+
+    console.log(`🎤 Buscando por ${config.crawler.knownArtists.length} artistas: ${config.crawler.knownArtists.join(', ')}`);
 
     // Primero buscar por artistas conocidos (más eficiente)
     if (config.crawler.knownArtists.length > 0) {
