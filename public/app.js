@@ -88,6 +88,8 @@ async function loadArtists() {
         const response = await fetch(`${API_BASE}/artists`);
         const artists = await response.json();
         
+        console.log(`📥 Frontend recibió ${artists.length} artistas de la API:`, artists.map(a => a.name));
+        
         if (artists.length === 0) {
             artistsGrid.innerHTML = '<div class="empty-state"><div class="empty-state-title">No hay artistas</div><p>Ejecuta la sincronización para cargar artistas</p></div>';
             return;
@@ -102,7 +104,17 @@ async function loadArtists() {
             })
         );
         
-        artistsGrid.innerHTML = artistsWithTracks.map(artist => `
+        // Filtrar SOLO artistas que tienen tracks (por seguridad)
+        const validArtists = artistsWithTracks.filter(artist => artist.trackCount > 0);
+        
+        console.log(`✅ Artistas válidos con tracks: ${validArtists.length}`, validArtists.map(a => `${a.name} (${a.trackCount})`));
+        
+        if (validArtists.length === 0) {
+            artistsGrid.innerHTML = '<div class="empty-state"><div class="empty-state-title">No hay artistas con tracks</div><p>Ejecuta la sincronización para cargar artistas</p></div>';
+            return;
+        }
+        
+        artistsGrid.innerHTML = validArtists.map(artist => `
             <div class="artist-card" onclick="loadArtistTracks('${artist.name}')">
                 <div class="artist-name">${artist.name}</div>
                 <div class="artist-tracks">${artist.trackCount} ${artist.trackCount === 1 ? 'canción' : 'canciones'}</div>

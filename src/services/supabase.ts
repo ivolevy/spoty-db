@@ -211,11 +211,22 @@ export class SupabaseService {
         .sort((a, b) => a.name.localeCompare(b.name));
 
       console.log(`📊 Artistas encontrados con tracks: ${artists.length}`);
-      artists.forEach(artist => {
-        console.log(`   - ${artist.name}: ${artist.trackCount} tracks`);
-      });
+      if (artists.length > 0) {
+        artists.forEach(artist => {
+          console.log(`   - ${artist.name}: ${artist.trackCount} tracks`);
+        });
+      } else {
+        console.log(`   ⚠️  No se encontraron artistas con tracks en la base de datos`);
+      }
 
-      return artists.map(({ name, id }) => ({ name, id }));
+      // Validación adicional: asegurarse de que solo devolvemos artistas con tracks
+      const validArtists = artists.filter(artist => artist.trackCount > 0);
+      
+      if (validArtists.length !== artists.length) {
+        console.warn(`⚠️  Se filtraron ${artists.length - validArtists.length} artistas sin tracks`);
+      }
+
+      return validArtists.map(({ name, id }) => ({ name, id }));
     } catch (error) {
       console.error('Error obteniendo artistas:', error);
       throw error;
