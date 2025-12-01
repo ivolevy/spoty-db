@@ -126,6 +126,7 @@ export class SpotifyCrawler {
    * Busca tracks de un artista específico
    */
   private async searchByArtist(artistName: string): Promise<void> {
+    console.log(`🔍 Buscando: ${artistName}`);
     let offset = 0;
     const limit = 50;
     // En modo test, limitar a solo 50 tracks por artista para ser más rápido
@@ -135,7 +136,9 @@ export class SpotifyCrawler {
     while (hasMore && offset < maxResultsPerArtist) {
       try {
         const query = `artist:"${artistName}"`;
+        console.log(`   🔎 Query: ${query}, offset: ${offset}`);
         const searchResult = await this.spotifyClient.searchTracks(query, limit, offset);
+        console.log(`   ✅ Respuesta recibida de Spotify`);
         const tracks = searchResult.tracks.items;
 
         if (tracks.length === 0) {
