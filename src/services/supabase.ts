@@ -26,11 +26,37 @@ export class SupabaseService {
 
     try {
       // Eliminar duplicados por spotify_id antes de hacer upsert
+      // Esto previene duplicados dentro del mismo batch
       const uniqueTracks = Array.from(
         new Map(tracks.map(track => [track.spotify_id, track])).values()
       );
 
       console.log(`   📊 Preparando ${uniqueTracks.length} tracks únicos (de ${tracks.length} totales) para guardar`);
+      
+      // Verificar si hay duplicados en la base de datos antes de guardar
+      const spotifyIds = uniqueTracks.map(t => t.spotify_id);
+      const { data: existingTracks, error: checkError } = await this.client
+        .from('artist_tracks')
+        .select('spotify_id')
+        .in('spotify_id', spotifyIds);
+      
+      if (checkError) {
+        console.warn(`   ⚠️  Error verificando duplicados: ${checkError.message}`);
+      } else if (existingTracks && existingTracks.length > 0) {
+        const existingIds = new Set(existingTracks.map((t: any) => t.spotify_id));
+        const newTracks = uniqueTracks.filter(t => !existingIds.has(t.spotify_id));
+        console.log(`   🔍 Encontrados ${existingTracks.length} tracks existentes, ${newTracks.length} nuevos tracks`);
+        
+        if (newTracks.length === 0) {
+          console.log(`   ✅ Todos los tracks ya existen en la base de datos. No hay nada nuevo que guardar.`);
+          return;
+        }
+        
+        // Usar solo los tracks nuevos para el upsert (aunque el upsert maneja duplicados, esto es más eficiente)
+        const tracksToSave = newTracks;
+      } else {
+        const tracksToSave = uniqueTracks;
+      }
 
       // Hacer upsert en batches de 50 para evitar problemas
       const batchSize = 50;
@@ -69,10 +95,11 @@ export class SupabaseService {
         }
         
         savedCount += batch.length;
-        console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1} guardado exitosamente (${savedCount}/${uniqueTracks.length})`);
+        console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1} guardado exitosamente (${savedCount}/${tracksToSave.length})`);
       }
       
       console.log(`   ✅ Total: ${savedCount} tracks guardados en Supabase`);
+      console.log(`   🔒 Protección contra duplicados: onConflict en 'spotify_id' asegura que no se guarden duplicados`);
     } catch (error: any) {
       console.error('❌ Error haciendo upsert de tracks:');
       console.error('   Error message:', error.message);

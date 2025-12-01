@@ -328,7 +328,7 @@ export class SpotifyService {
           preview_url: string | null;
         }>;
       }>('get', `/artists/${artistId}/top-tracks`, {
-        market: 'US',
+        market: 'AR', // Argentina - mercado principal para Dale Play Records
       });
 
       // Retornar todos los tracks (el límite se maneja en el código que llama)
