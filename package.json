@@ -1,37 +1,32 @@
 {
-  "name": "spotify-artists-sync",
+  "name": "spotify-label-tracker",
   "version": "1.0.0",
-  "description": "Backend service to sync top tracks from Spotify artists to Supabase",
+  "description": "Sistema para rastrear y almacenar canciones de Dale Play Records desde Spotify",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch api/index.ts",
-    "start": "tsx api/index.ts",
-    "start:local": "PORT=3000 tsx api/index.ts",
-    "sync": "tsx scripts/cron-sync.ts",
-    "setup-db": "tsx scripts/setup-database.ts",
-    "test-spotify": "tsx scripts/test-spotify-credentials.ts",
-    "test-audio": "tsx scripts/test-audio-features.ts",
-    "test-token-bpm": "tsx scripts/test-token-bpm.ts",
-    "manual-sync": "tsx scripts/manual-sync.ts",
-    "sync-dale-play": "tsx scripts/sync-dale-play.ts",
-    "get-token": "tsx scripts/get-spotify-token.ts",
-    "local": "tsx scripts/start-local.ts"
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "crawl": "ts-node src/crawler.ts",
+    "sync": "ts-node src/sync.ts",
+    "setup-db": "ts-node src/setup-database.ts"
   },
-  "keywords": ["spotify", "supabase", "sync"],
+  "keywords": ["spotify", "supabase", "music", "crawler"],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "axios": "^1.6.2",
     "dotenv": "^16.3.1",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^20.10.5",
-    "@vercel/node": "^3.0.7",
-    "tsx": "^4.7.0",
+    "@types/node-cron": "^3.0.11",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }
 }
+
