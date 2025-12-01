@@ -13,6 +13,7 @@
     "test-audio": "tsx scripts/test-audio-features.ts",
     "test-token-bpm": "tsx scripts/test-token-bpm.ts",
     "manual-sync": "tsx scripts/manual-sync.ts",
+    "sync-dale-play": "tsx scripts/sync-dale-play.ts",
     "get-token": "tsx scripts/get-spotify-token.ts"
   },
   "keywords": ["spotify", "supabase", "sync"],

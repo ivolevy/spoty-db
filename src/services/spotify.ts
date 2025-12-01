@@ -331,8 +331,8 @@ export class SpotifyService {
         market: 'US',
       });
 
-      // Tomar solo los primeros 5 tracks
-      return response.tracks.slice(0, 5).map((track) => ({
+      // Retornar todos los tracks (el límite se maneja en el código que llama)
+      return response.tracks.map((track) => ({
         id: track.id,
         name: track.name,
         artists: track.artists,
