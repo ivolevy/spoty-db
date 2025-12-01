@@ -1,5 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import path from 'path';
 import { getAllTracks, getTrackById } from '../src/api/tracks';
 import { getAllArtists, getArtistTracks } from '../src/api/artists';
 import { getGlobalMetrics, getArtistMetrics } from '../src/api/metrics';
@@ -10,23 +11,17 @@ const app = express();
 
 app.use(express.json());
 
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, '../public')));
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Root endpoint
+// Root endpoint - serve HTML
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Spotify Artists Sync API',
-    version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      tracks: '/tracks',
-      artists: '/artists',
-      metrics: '/metrics/global',
-    },
-  });
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 // Tracks endpoints
