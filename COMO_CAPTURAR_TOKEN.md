@@ -1,4 +1,4 @@
-# Cómo Capturar el Token de Spotify
+# Cómo Capturar el Token de SpotifyAAAAAAAAAA
 
 ## Método 1: Desde la URL (Más Fácil) ✅
 
