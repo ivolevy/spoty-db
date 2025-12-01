@@ -72,16 +72,20 @@ export class SupabaseService {
    */
   async getAllTracks(): Promise<any[]> {
     try {
-      const { data, error } = await this.client
+      // Supabase puede tener límites por defecto, así que obtenemos todos explícitamente
+      const { data, error, count } = await this.client
         .from('artist_tracks')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('fetched_at', { ascending: false });
 
       if (error) {
         throw error;
       }
 
-      return data || [];
+      const tracks = data || [];
+      console.log(`📊 Total tracks en DB: ${count || tracks.length}, tracks devueltos: ${tracks.length}`);
+
+      return tracks;
     } catch (error) {
       console.error('Error obteniendo tracks:', error);
       throw error;

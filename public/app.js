@@ -51,12 +51,18 @@ async function loadTracks() {
         const response = await fetch(`${API_BASE}/tracks`);
         const tracks = await response.json();
         
+        console.log(`📥 Frontend recibió ${tracks.length} tracks de la API`);
+        
         if (tracks.length === 0) {
             tracksGrid.innerHTML = '<div class="empty-state"><div class="empty-state-title">No hay canciones</div><p>Ejecuta la sincronización para cargar tracks</p></div>';
             return;
         }
         
-        tracksGrid.innerHTML = tracks.map(track => `
+        // Filtrar tracks que tengan al menos nombre (por si hay datos corruptos)
+        const validTracks = tracks.filter(track => track && track.name);
+        console.log(`✅ Tracks válidos para mostrar: ${validTracks.length} (de ${tracks.length} totales)`);
+        
+        tracksGrid.innerHTML = validTracks.map(track => `
             <div class="track-card">
                 ${track.cover_url ? `<img src="${track.cover_url}" alt="${track.name}" class="track-cover">` : '<div class="track-cover"></div>'}
                 <div class="track-name">${track.name}</div>

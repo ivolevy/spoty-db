@@ -10,6 +10,7 @@ const supabase = new SupabaseService();
 export async function getAllTracks(req: Request, res: Response) {
   try {
     const tracks = await supabase.getAllTracks();
+    console.log(`📤 GET /tracks: devolviendo ${tracks.length} tracks`);
     res.json(tracks);
   } catch (error: any) {
     console.error('Error en GET /tracks:', error);
