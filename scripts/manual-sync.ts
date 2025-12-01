@@ -27,8 +27,18 @@ async function searchAndSaveTrack(artistName: string, trackName?: string) {
 
   // Si hay token de usuario en .env, usarlo
   if (process.env.SPOTIFY_USER_TOKEN) {
-    spotify.setUserToken(process.env.SPOTIFY_USER_TOKEN);
+    const token = process.env.SPOTIFY_USER_TOKEN.trim();
+    spotify.setUserToken(token);
     console.log('✅ Token de usuario cargado desde .env');
+    console.log(`   Token (primeros 20 chars): ${token.substring(0, 20)}...`);
+    
+    // Verificar que el token se guardó correctamente
+    const savedToken = spotify.getUserToken();
+    if (savedToken === token) {
+      console.log('   ✅ Token verificado correctamente');
+    } else {
+      console.warn('   ⚠️  El token no se guardó correctamente');
+    }
   } else {
     console.warn('⚠️  No hay SPOTIFY_USER_TOKEN en .env. BPM no estará disponible.');
     console.warn('   Ejecuta: npm run get-token');

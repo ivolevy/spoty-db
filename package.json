@@ -11,6 +11,7 @@
     "setup-db": "tsx scripts/setup-database.ts",
     "test-spotify": "tsx scripts/test-spotify-credentials.ts",
     "test-audio": "tsx scripts/test-audio-features.ts",
+    "test-token-bpm": "tsx scripts/test-token-bpm.ts",
     "manual-sync": "tsx scripts/manual-sync.ts",
     "get-token": "tsx scripts/get-spotify-token.ts"
   },

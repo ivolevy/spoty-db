@@ -55,6 +55,7 @@ export class SpotifyService {
   private async getAccessToken(useUserToken: boolean = false): Promise<string> {
     // Si se solicita usar token de usuario y está disponible, usarlo
     if (useUserToken && this.userAccessToken) {
+      console.log(`🔑 Usando token de usuario para esta petición (primeros 20 chars: ${this.userAccessToken.substring(0, 20)}...)`);
       return this.userAccessToken;
     }
 
