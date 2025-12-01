@@ -451,51 +451,168 @@ function goBackToArtists() {
 }
 
 // Load metrics
+let allMetrics = null;
+
 async function loadMetrics() {
     const metricsContainer = document.getElementById('metricsContainer');
     metricsContainer.innerHTML = '<div class="loading">Cargando métricas...</div>';
     
     try {
         const response = await fetch(`${API_BASE}/metrics/global`);
-        const metrics = await response.json();
+        allMetrics = await response.json();
         
-        let html = `
-            <div class="metric-section">
-                <div class="metric-title">Géneros</div>
-                <div class="genre-list">
-                    ${Object.entries(metrics.genre_distribution || {})
-                        .sort(([,a], [,b]) => b - a)
-                        .slice(0, 10)
-                        .map(([genre, count]) => `
-                            <div class="genre-tag">${escapeHtml(genre)} (${count})</div>
-                        `).join('')}
-                </div>
-            </div>
-        `;
-        
-        if (metrics.avg_bpm_by_artist && Object.keys(metrics.avg_bpm_by_artist).length > 0) {
-            html += `
-                <div class="metric-section">
-                    <div class="metric-title">BPM Promedio por Artista</div>
-                    <div class="bpm-list">
-                        ${Object.entries(metrics.avg_bpm_by_artist)
-                            .map(([artist, bpm]) => `
-                                <div class="bpm-item">
-                                    <span class="bpm-artist">${escapeHtml(artist)}</span>
-                                    <span class="bpm-value">${Math.round(bpm)} BPM</span>
-                                </div>
-                            `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-        
-        metricsContainer.innerHTML = html;
+        renderMetrics();
     } catch (error) {
         console.error('Error loading metrics:', error);
         metricsContainer.innerHTML = '<div class="loading">Error cargando métricas</div>';
     }
 }
+
+function renderMetrics() {
+    if (!allMetrics) return;
+    
+    const filter = document.getElementById('metricsFilter')?.value || 'all';
+    const limit = document.getElementById('metricsLimit')?.value || '10';
+    const limitNum = limit === 'all' ? Infinity : parseInt(limit);
+    
+    const metricsContainer = document.getElementById('metricsContainer');
+    let html = '';
+    
+    // Summary cards
+    if (filter === 'all' || filter === 'artists') {
+        html += `
+            <div class="metrics-summary-grid">
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${allMetrics.total_tracks || 0}</div>
+                    <div class="metric-summary-label">Total Canciones</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${allMetrics.unique_artists || 0}</div>
+                    <div class="metric-summary-label">Artistas</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${allMetrics.unique_albums || 0}</div>
+                    <div class="metric-summary-label">Álbumes</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${allMetrics.total_duration_formatted || '0m'}</div>
+                    <div class="metric-summary-label">Duración Total</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${allMetrics.bpm_average ? Math.round(allMetrics.bpm_average) : 'N/A'}</div>
+                    <div class="metric-summary-label">BPM Promedio</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Top Artists
+    if (filter === 'all' || filter === 'artists') {
+        const topArtists = (allMetrics.top_artists || []).slice(0, limitNum);
+        const maxTracks = topArtists.length > 0 ? topArtists[0].trackCount : 1;
+        
+        html += `
+            <div class="metric-section">
+                <div class="metric-title">Top Artistas</div>
+                <div class="top-artists-list">
+                    ${topArtists.map((artist, index) => {
+                        const percentage = (artist.trackCount / maxTracks) * 100;
+                        return `
+                            <div class="top-artist-item" onclick="showArtistDetail('${escapeHtml(artist.name).replace(/'/g, "\\'")}')">
+                                <div class="top-artist-rank">${index + 1}</div>
+                                <div class="top-artist-info">
+                                    <div class="top-artist-name">${escapeHtml(artist.name)}</div>
+                                    <div class="top-artist-meta">
+                                        <span>${artist.trackCount} canciones</span>
+                                        <span>•</span>
+                                        <span>${artist.durationFormatted}</span>
+                                        ${artist.avgBpm ? `<span>•</span><span>${Math.round(artist.avgBpm)} BPM</span>` : ''}
+                                    </div>
+                                </div>
+                                <div class="top-artist-bar">
+                                    <div class="top-artist-bar-fill" style="width: ${percentage}%"></div>
+                                </div>
+                                <div class="top-artist-stats">
+                                    <div class="top-artist-tracks">${artist.trackCount}</div>
+                                    <div class="top-artist-duration">${artist.durationFormatted}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Top Albums
+    if (filter === 'all' || filter === 'albums') {
+        const topAlbums = (allMetrics.top_albums || []).slice(0, limitNum);
+        
+        html += `
+            <div class="metric-section">
+                <div class="metric-title">Top Álbumes</div>
+                <div class="top-albums-list">
+                    ${topAlbums.map(album => `
+                        <div class="top-album-item">
+                            ${album.cover ? `<img src="${album.cover}" alt="${escapeHtml(album.name)}" class="top-album-cover">` : '<div class="top-album-cover"></div>'}
+                            <div class="top-album-name">${escapeHtml(album.name)}</div>
+                            <div class="top-album-artist">${escapeHtml(album.artist)}</div>
+                            <div class="top-album-tracks">${album.trackCount} canciones</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Genres
+    if (filter === 'all' || filter === 'genres') {
+        const genres = Object.entries(allMetrics.genre_distribution || {})
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, limitNum);
+        
+        html += `
+            <div class="metric-section">
+                <div class="metric-title">Géneros</div>
+                <div class="genre-list">
+                    ${genres.map(([genre, count]) => `
+                        <div class="genre-tag">${escapeHtml(genre)} (${count})</div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // BPM by Artist
+    if (filter === 'all' || filter === 'bpm') {
+        const bpmArtists = Object.entries(allMetrics.avg_bpm_by_artist || {})
+            .map(([artist, bpm]) => ({ artist, bpm }))
+            .sort((a, b) => b.bpm - a.bpm)
+            .slice(0, limitNum);
+        
+        if (bpmArtists.length > 0) {
+            html += `
+                <div class="metric-section">
+                    <div class="metric-title">BPM Promedio por Artista</div>
+                    <div class="bpm-list">
+                        ${bpmArtists.map(({ artist, bpm }) => `
+                            <div class="bpm-item">
+                                <span class="bpm-artist">${escapeHtml(artist)}</span>
+                                <span class="bpm-value">${Math.round(bpm)} BPM</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    metricsContainer.innerHTML = html || '<div class="empty-state">No hay métricas disponibles</div>';
+}
+
+// Filter change handlers
+document.getElementById('metricsFilter')?.addEventListener('change', renderMetrics);
+document.getElementById('metricsLimit')?.addEventListener('change', renderMetrics);
 
 // Load global stats
 async function loadStats() {

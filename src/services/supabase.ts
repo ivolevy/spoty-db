@@ -333,12 +333,79 @@ export class SupabaseService {
         }
       });
 
+      // Top artists con duración total
+      const topArtists = Object.entries(tracksByArtist)
+        .map(([artist, count]) => {
+          const artistTracks = tracks.filter((t: any) => t.artist_main === artist);
+          const totalDuration = artistTracks.reduce((sum: number, t: any) => sum + (t.duration_ms || 0), 0);
+          const durationMinutes = Math.floor(totalDuration / 60000);
+          const durationHours = Math.floor(durationMinutes / 60);
+          const remainingMinutes = durationMinutes % 60;
+          const durationFormatted = durationHours > 0 
+            ? `${durationHours}h ${remainingMinutes}m` 
+            : `${remainingMinutes}m`;
+          
+          return {
+            name: artist,
+            trackCount: count as number,
+            totalDuration: totalDuration,
+            durationFormatted: durationFormatted,
+            avgBpm: avgBpmByArtist[artist] || null,
+          };
+        })
+        .sort((a, b) => b.trackCount - a.trackCount)
+        .slice(0, 20);
+
+      // Top albums
+      const albumsByCount: Record<string, { count: number; artist: string; cover?: string }> = {};
+      tracks.forEach((track: any) => {
+        if (track.album) {
+          const key = `${track.album}|${track.artist_main || ''}`;
+          if (!albumsByCount[key]) {
+            albumsByCount[key] = {
+              count: 0,
+              artist: track.artist_main || '',
+              cover: track.cover_url || null,
+            };
+          }
+          albumsByCount[key].count++;
+        }
+      });
+
+      const topAlbums = Object.entries(albumsByCount)
+        .map(([key, data]) => {
+          const [albumName] = key.split('|');
+          return {
+            name: albumName,
+            artist: data.artist,
+            trackCount: data.count,
+            cover: data.cover,
+          };
+        })
+        .sort((a, b) => b.trackCount - a.trackCount)
+        .slice(0, 20);
+
+      // Duración total
+      const totalDuration = tracks.reduce((sum: number, t: any) => sum + (t.duration_ms || 0), 0);
+      const totalDurationMinutes = Math.floor(totalDuration / 60000);
+      const totalDurationHours = Math.floor(totalDurationMinutes / 60);
+      const totalDurationRemainingMinutes = totalDurationMinutes % 60;
+      const totalDurationFormatted = totalDurationHours > 0 
+        ? `${totalDurationHours}h ${totalDurationRemainingMinutes}m` 
+        : `${totalDurationRemainingMinutes}m`;
+
       return {
         total_tracks: totalTracks,
         bpm_average: bpmAverage,
         genre_distribution: genreDistribution,
         tracks_by_artist: tracksByArtist,
         avg_bpm_by_artist: avgBpmByArtist,
+        top_artists: topArtists,
+        top_albums: topAlbums,
+        total_duration: totalDuration,
+        total_duration_formatted: totalDurationFormatted,
+        unique_artists: Object.keys(tracksByArtist).length,
+        unique_albums: Object.keys(albumsByCount).length,
       };
     } catch (error) {
       console.error('Error obteniendo métricas globales:', error);
