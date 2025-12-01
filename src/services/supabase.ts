@@ -109,27 +109,27 @@ export class SupabaseService {
         const batch = tracksToSave.slice(i, i + batchSize);
         console.log(`   💾 Guardando batch ${Math.floor(i / batchSize) + 1} (${batch.length} tracks)...`);
         
+        const upsertData = batch.map((track) => ({
+          spotify_id: track.spotify_id,
+          name: track.name,
+          artists: track.artists,
+          artist_main: track.artist_main,
+          album: track.album,
+          release_date: normalizeReleaseDate(track.release_date),
+          duration_ms: track.duration_ms,
+          bpm: track.bpm,
+          genres: track.genres,
+          preview_url: track.preview_url,
+          cover_url: track.cover_url,
+          fetched_at: new Date().toISOString(),
+        }));
+
+        // @ts-expect-error - Supabase type inference issue with upsert
         const { data, error } = await this.client
           .from('artist_tracks')
-          .upsert(
-            batch.map((track) => ({
-              spotify_id: track.spotify_id,
-              name: track.name,
-              artists: track.artists,
-              artist_main: track.artist_main,
-              album: track.album,
-              release_date: normalizeReleaseDate(track.release_date),
-              duration_ms: track.duration_ms,
-              bpm: track.bpm,
-              genres: track.genres,
-              preview_url: track.preview_url,
-              cover_url: track.cover_url,
-              fetched_at: new Date().toISOString(),
-            })),
-            {
-              onConflict: 'spotify_id',
-            }
-          );
+          .upsert(upsertData, {
+            onConflict: 'spotify_id',
+          });
 
         if (error) {
           console.error(`   ❌ Error en batch ${Math.floor(i / batchSize) + 1}:`, error);

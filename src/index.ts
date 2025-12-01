@@ -1,5 +1,8 @@
-import express from 'express';
+// IMPORTANTE: dotenv.config() debe ejecutarse ANTES de cualquier importación
 import dotenv from 'dotenv';
+dotenv.config();
+
+import express from 'express';
 import path from 'path';
 import { getAllTracks, getTrackById } from './api/tracks';
 import { getAllArtists, getArtistTracks } from './api/artists';
@@ -9,8 +12,6 @@ import { debugAuth } from './api/auth-debug';
 import { setUserToken, getTokenStatus, setSpotifyServiceInstance } from './api/token';
 import { syncArtists } from './api/sync';
 import { SpotifyService } from './services/spotify';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;

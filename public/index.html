@@ -10,107 +10,97 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="particles" id="particles"></div>
-    
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="logo">
-                <img src="logo.png" alt="spoty" class="logo-img">
+    <!-- Top Nav Bar -->
+    <header class="top-nav">
+        <div class="nav-banner">
+            <div class="nav-logo-section">
+                <svg class="nav-logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" fill="currentColor"/>
+                </svg>
+                <span class="nav-logo-text">spoty</span>
+            </div>
+            <div class="nav-actions">
+                <button class="nav-connect-btn" id="connectSpotifyBtn">Connect with Spotify</button>
+                <button class="nav-sync-btn" id="syncBtn">Sincronizar</button>
             </div>
         </div>
-        <nav class="sidebar-nav">
-            <button class="nav-item active" data-tab="tracks">
-                <span class="nav-icon">🎵</span>
-                <span class="nav-label">Canciones</span>
-            </button>
-            <button class="nav-item" data-tab="artists">
-                <span class="nav-icon">👤</span>
-                <span class="nav-label">Artistas</span>
-            </button>
-            <button class="nav-item" data-tab="metrics">
-                <span class="nav-icon">📊</span>
-                <span class="nav-label">Estadísticas</span>
-            </button>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="stats-mini">
-                <div class="stat-mini">
-                    <div class="stat-mini-value" id="totalTracksMini">-</div>
-                    <div class="stat-mini-label">Canciones</div>
-                </div>
-                <div class="stat-mini">
-                    <div class="stat-mini-value" id="totalArtistsMini">-</div>
-                    <div class="stat-mini-label">Artistas</div>
-                </div>
-            </div>
-        </div>
-    </aside>
+    </header>
 
     <!-- Main Content -->
-    <div class="main-wrapper">
-        <!-- Top Nav Bar (estilo de la imagen) -->
-        <header class="top-nav">
-            <div class="nav-banner">
-                <div class="nav-logo-section">
-                    <svg class="nav-logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" fill="currentColor"/>
-                    </svg>
-                    <span class="nav-logo-text">spoty</span>
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="logo.png" alt="spoty" class="logo-img">
                 </div>
-                <button class="nav-connect-btn" id="connectSpotifyBtn">Connect with Spotify</button>
             </div>
-        </header>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-tab="tracks">
+                    <span class="nav-label">Canciones</span>
+                </button>
+                <button class="nav-item" data-tab="artists">
+                    <span class="nav-label">Artistas</span>
+                </button>
+                <button class="nav-item" data-tab="metrics">
+                    <span class="nav-label">Estadísticas</span>
+                </button>
+            </nav>
+        </aside>
 
-        <!-- Main Content Area -->
-        <main class="main-content">
-            <div class="content-header">
+        <!-- Content Area -->
+        <main class="content-area">
+            <div class="page-header">
                 <h1 class="page-title" id="pageTitle">Canciones</h1>
-                <div class="header-actions">
-                    <button class="btn btn-secondary" id="syncBtn">Sincronizar</button>
-                    <button class="btn btn-icon" id="refreshBtn" title="Actualizar">🔄</button>
+                <button class="btn-refresh" id="refreshBtn" title="Actualizar">Refresh</button>
+            </div>
+
+            <!-- Stats Summary -->
+            <div class="stats-summary" id="statsSummary">
+                <div class="stat-item">
+                    <span class="stat-value" id="totalTracks">-</span>
+                    <span class="stat-label">Canciones</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="totalArtists">-</span>
+                    <span class="stat-label">Artistas</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="avgBpm">-</span>
+                    <span class="stat-label">BPM Promedio</span>
                 </div>
             </div>
 
-            <!-- Stats Cards -->
-            <div class="stats-grid" id="statsGrid">
-                <div class="stat-card">
-                    <div class="stat-value" id="totalTracks">-</div>
-                    <div class="stat-label">Total Canciones</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="totalArtists">-</div>
-                    <div class="stat-label">Artistas</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="avgBpm">-</div>
-                    <div class="stat-label">BPM Promedio</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="lastUpdate">-</div>
-                    <div class="stat-label">Última Actualización</div>
-                </div>
-            </div>
-
-            <!-- Tab Content -->
+            <!-- Content -->
             <div class="content">
+                <!-- Tracks Tab -->
                 <div class="tab-content active" id="tracksTab">
-                    <div class="search-bar">
+                    <div class="search-container">
                         <input type="text" id="searchInput" placeholder="Buscar canciones..." class="search-input">
                     </div>
-                    <div class="tracks-grid" id="tracksGrid">
+                    <div class="tracks-list" id="tracksGrid">
                         <div class="loading">Cargando canciones...</div>
                     </div>
                 </div>
 
+                <!-- Artists Tab -->
                 <div class="tab-content" id="artistsTab">
-                    <div class="artists-grid" id="artistsGrid">
+                    <div class="artists-list" id="artistsGrid">
                         <div class="loading">Cargando artistas...</div>
                     </div>
                 </div>
 
+                <!-- Artist Detail View -->
+                <div class="tab-content" id="artistDetailTab">
+                    <button class="back-btn" onclick="goBackToArtists()">← Volver a Artistas</button>
+                    <div class="artist-detail" id="artistDetail">
+                        <!-- Contenido dinámico -->
+                    </div>
+                </div>
+
+                <!-- Metrics Tab -->
                 <div class="tab-content" id="metricsTab">
-                    <div class="metrics-container" id="metricsContainer">
+                    <div class="metrics-content" id="metricsContainer">
                         <div class="loading">Cargando métricas...</div>
                     </div>
                 </div>

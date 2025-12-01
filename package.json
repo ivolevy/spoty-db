@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "dev": "ts-node src/index.ts",
     "crawl": "ts-node src/crawler.ts",
     "sync": "ts-node src/sync.ts",
     "setup-db": "ts-node src/setup-database.ts"
