@@ -50,10 +50,16 @@ export class SyncService {
 
         // 4. Obtener audio features (BPM) para todos los tracks
         const trackIds = tracks.map((t) => t.id);
-        const audioFeatures = await this.spotify.getAudioFeatures(trackIds);
-        const audioFeaturesMap = new Map(
-          audioFeatures.map((af) => [af.id, af.tempo])
-        );
+        let audioFeaturesMap = new Map<string, number>();
+        try {
+          const audioFeatures = await this.spotify.getAudioFeatures(trackIds);
+          audioFeaturesMap = new Map(
+            audioFeatures.map((af) => [af.id, af.tempo])
+          );
+        } catch (error: any) {
+          console.warn(`   ⚠️  Error obteniendo audio features, continuando sin BPM:`, error.message);
+          // Continuar sin BPM si falla
+        }
 
         // 5. Procesar cada track
         for (const track of tracks) {

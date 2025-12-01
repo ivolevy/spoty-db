@@ -24,30 +24,42 @@ export class SupabaseService {
     }
 
     try {
-      const { error } = await this.client
-        .from('artist_tracks')
-        .upsert(
-          tracks.map((track) => ({
-            spotify_id: track.spotify_id,
-            name: track.name,
-            artists: track.artists,
-            artist_main: track.artist_main,
-            album: track.album,
-            release_date: track.release_date || null,
-            duration_ms: track.duration_ms,
-            bpm: track.bpm,
-            genres: track.genres,
-            preview_url: track.preview_url,
-            cover_url: track.cover_url,
-            fetched_at: new Date().toISOString(),
-          })),
-          {
-            onConflict: 'spotify_id',
-          }
-        );
+      // Eliminar duplicados por spotify_id antes de hacer upsert
+      const uniqueTracks = Array.from(
+        new Map(tracks.map(track => [track.spotify_id, track])).values()
+      );
 
-      if (error) {
-        throw error;
+      console.log(`   Guardando ${uniqueTracks.length} tracks únicos (de ${tracks.length} totales)`);
+
+      // Hacer upsert en batches de 50 para evitar problemas
+      const batchSize = 50;
+      for (let i = 0; i < uniqueTracks.length; i += batchSize) {
+        const batch = uniqueTracks.slice(i, i + batchSize);
+        const { error } = await this.client
+          .from('artist_tracks')
+          .upsert(
+            batch.map((track) => ({
+              spotify_id: track.spotify_id,
+              name: track.name,
+              artists: track.artists,
+              artist_main: track.artist_main,
+              album: track.album,
+              release_date: track.release_date || null,
+              duration_ms: track.duration_ms,
+              bpm: track.bpm,
+              genres: track.genres,
+              preview_url: track.preview_url,
+              cover_url: track.cover_url,
+              fetched_at: new Date().toISOString(),
+            })),
+            {
+              onConflict: 'spotify_id',
+            }
+          );
+
+        if (error) {
+          throw error;
+        }
       }
     } catch (error) {
       console.error('Error haciendo upsert de tracks:', error);
