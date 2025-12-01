@@ -2,11 +2,19 @@
   "version": 2,
   "builds": [
     {
+      "src": "api/cron.ts",
+      "use": "@vercel/node"
+    },
+    {
       "src": "src/index.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/api/cron",
+      "dest": "api/cron.ts"
+    },
     {
       "src": "/(.*)",
       "dest": "src/index.ts"
