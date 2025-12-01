@@ -5,8 +5,8 @@ import { SpotifyCrawler } from '../src/crawler';
  * No requiere autenticación especial (solo para uso manual desde la interfaz)
  */
 export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
+  req: any,
+  res: any
 ) {
   // Solo permitir GET
   if (req.method !== 'GET') {

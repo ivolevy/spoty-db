@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { SpotifyCrawler } from '../src/crawler';
 
 /**
@@ -9,8 +8,8 @@ import { SpotifyCrawler } from '../src/crawler';
  * Para mayor seguridad, también puedes verificar CRON_SECRET
  */
 export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
+  req: any,
+  res: any
 ) {
   // Verificar que viene de Vercel Cron
   // Vercel envía un header 'authorization' automáticamente para cron jobs
