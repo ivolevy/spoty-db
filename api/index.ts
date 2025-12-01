@@ -41,6 +41,13 @@ app.get('/api/auth/login', login);
 app.get('/api/auth/callback', callback);
 app.get('/api/auth/debug', debugAuth); // Endpoint de debug
 
+// Fallback para /callback (por si Spotify está configurado incorrectamente)
+app.get('/callback', (req, res) => {
+  // Redirigir a la ruta correcta con los mismos query params
+  const queryString = new URLSearchParams(req.query as any).toString();
+  res.redirect(`/api/auth/callback?${queryString}`);
+});
+
 // Token endpoints
 app.post('/api/token', setUserToken);
 app.get('/api/token/status', getTokenStatus);
