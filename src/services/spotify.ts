@@ -269,7 +269,21 @@ export class SpotifyService {
         return null;
       }
 
-      // Elegir el resultado con mayor popularity
+      // Buscar coincidencia exacta primero, luego por popularidad
+      const exactMatch = response.artists.items.find(
+        (artist) => artist.name.toLowerCase() === name.toLowerCase()
+      );
+      
+      if (exactMatch) {
+        return {
+          id: exactMatch.id,
+          name: exactMatch.name,
+          popularity: exactMatch.popularity,
+          genres: exactMatch.genres,
+        };
+      }
+
+      // Si no hay coincidencia exacta, elegir el más popular
       const sortedArtists = response.artists.items.sort(
         (a, b) => b.popularity - a.popularity
       );

@@ -36,6 +36,8 @@ export async function login(req: Request, res: Response) {
     const scopes = [
       'user-read-private',
       'user-read-email',
+      'user-read-playback-state',
+      'user-read-currently-playing',
     ].join(' ');
     
     const authUrl = `https://accounts.spotify.com/authorize?` +
