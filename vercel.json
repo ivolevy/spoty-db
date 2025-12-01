@@ -6,7 +6,7 @@
       "use": "@vercel/node"
     },
     {
-      "src": "src/index.ts",
+      "src": "api/index.ts",
       "use": "@vercel/node"
     }
   ],
@@ -17,7 +17,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "src/index.ts"
+      "dest": "api/index.ts"
     }
   ],
   "crons": [
