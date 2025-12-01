@@ -14,6 +14,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy para que Vercel detecte correctamente HTTPS
+app.set('trust proxy', true);
+
 app.use(express.json());
 
 // Crear instancia compartida de SpotifyService para compartir tokens
