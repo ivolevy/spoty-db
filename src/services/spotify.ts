@@ -50,29 +50,29 @@ export class SpotifyService {
         const startTime = Date.now();
         console.log(`[${new Date().toISOString()}] Intentando obtener token de Spotify (intento ${attempt}/${maxRetries})...`);
         
-        const response = await Promise.race([
-          axios.post(
-            'https://accounts.spotify.com/api/token',
-            new URLSearchParams({
-              grant_type: 'client_credentials',
-            }),
-            {
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                Authorization: `Basic ${Buffer.from(
-                  `${clientId}:${clientSecret}`
-                ).toString('base64')}`,
-              },
-              timeout: 15000, // 15 segundos
-            }
-          ),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Request timeout after 15s')), 15000)
-          )
-        ]) as any;
+        const response = await axios.post(
+          'https://accounts.spotify.com/api/token',
+          new URLSearchParams({
+            grant_type: 'client_credentials',
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              Authorization: `Basic ${Buffer.from(
+                `${clientId}:${clientSecret}`
+              ).toString('base64')}`,
+            },
+            timeout: 10000, // 10 segundos
+            validateStatus: (status) => status < 500, // No lanzar error para 4xx
+          }
+        );
 
         const elapsed = Date.now() - startTime;
-        console.log(`[${new Date().toISOString()}] Respuesta recibida en ${elapsed}ms`);
+        console.log(`[${new Date().toISOString()}] Respuesta recibida en ${elapsed}ms (status: ${response.status})`);
+
+        if (response.status !== 200) {
+          throw new Error(`Spotify API returned status ${response.status}: ${JSON.stringify(response.data)}`);
+        }
 
         this.accessToken = response.data.access_token;
         this.tokenExpiresAt = Date.now() + (response.data.expires_in - 300) * 1000;
@@ -85,19 +85,19 @@ export class SpotifyService {
         return this.accessToken;
       } catch (error: any) {
         lastError = error;
-        const elapsed = Date.now() - (Date.now() - 15000); // Aproximado
         const isTimeout = error.code === 'ECONNABORTED' || 
                          error.message?.includes('timeout') ||
-                         error.message?.includes('Request timeout');
+                         error.message?.includes('ETIMEDOUT');
         
         console.error(`[${new Date().toISOString()}] Error en intento ${attempt}:`, {
           code: error.code,
           message: error.message,
+          status: error.response?.status,
           isTimeout
         });
         
         if (isTimeout && attempt < maxRetries) {
-          const waitTime = Math.min(attempt * 1000, 3000); // Esperar 1s, 2s, 3s máximo
+          const waitTime = attempt * 1000; // Esperar 1s, 2s, 3s
           console.warn(`⏳ Timeout obteniendo token. Esperando ${waitTime}ms antes de reintentar...`);
           await this.sleep(waitTime);
           continue;
@@ -107,7 +107,7 @@ export class SpotifyService {
         if (attempt === maxRetries) {
           const errorMsg = isTimeout 
             ? `Timeout después de ${maxRetries} intentos`
-            : `Error después de ${maxRetries} intentos: ${error.message || error.code || 'Unknown error'}`;
+            : `Error después de ${maxRetries} intentos: ${error.response?.data?.error_description || error.message || error.code || 'Unknown error'}`;
           console.error(`❌ ${errorMsg}`);
           throw new Error(errorMsg);
         }
