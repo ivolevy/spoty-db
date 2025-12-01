@@ -1,59 +1,35 @@
-/**
- * Punto de entrada principal del sistema
- * Puede ejecutarse como crawler único o como cron job
- */
+import express from 'express';
+import dotenv from 'dotenv';
+import { getAllTracks, getTrackById } from './api/tracks';
+import { getAllArtists, getArtistTracks } from './api/artists';
+import { getGlobalMetrics, getArtistMetrics } from './api/metrics';
 
-import { CronJobManager } from './cron-job';
-import { SpotifyCrawler } from './crawler';
+dotenv.config();
 
-async function main() {
-  const args = process.argv.slice(2);
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-  // Modo crawler único (una ejecución)
-  if (args.includes('--crawl') || args.includes('--once')) {
-    console.log('🚀 Modo: Ejecución única (crawler)');
-    const crawler = new SpotifyCrawler();
-    await crawler.crawl();
-    return;
-  }
+app.use(express.json());
 
-  // Modo cron job
-  if (args.includes('--cron')) {
-    console.log('⏰ Modo: Cron job (ejecución semanal)');
-    const cronManager = new CronJobManager();
-    
-    // Permitir customizar el schedule
-    const scheduleIndex = args.indexOf('--schedule');
-    const schedule = scheduleIndex !== -1 && args[scheduleIndex + 1]
-      ? args[scheduleIndex + 1]
-      : '0 2 * * 1'; // Lunes 2 AM por defecto
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
-    cronManager.start(schedule);
-    
-    // Mantener proceso vivo
-    process.on('SIGINT', () => {
-      console.log('\n🛑 Deteniendo...');
-      cronManager.stop();
-      process.exit(0);
-    });
-    
-    return;
-  }
+// Tracks endpoints
+app.get('/tracks', getAllTracks);
+app.get('/tracks/:id', getTrackById);
 
-  // Modo por defecto: ejecución única
-  console.log('🚀 Ejecutando crawler (modo por defecto)');
-  console.log('💡 Usa --cron para modo cron job, --crawl para ejecución única');
-  const crawler = new SpotifyCrawler();
-  await crawler.crawl();
-}
+// Artists endpoints
+app.get('/artists', getAllArtists);
+app.get('/artists/:name/tracks', getArtistTracks);
 
-main()
-  .then(() => {
-    console.log('\n✅ Proceso completado');
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error('\n❌ Error:', error);
-    process.exit(1);
-  });
+// Metrics endpoints
+app.get('/metrics/global', getGlobalMetrics);
+app.get('/metrics/artist/:name', getArtistMetrics);
+
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+  console.log(`📅 Iniciado: ${new Date().toISOString()}`);
+});
 
