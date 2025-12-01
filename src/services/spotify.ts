@@ -24,7 +24,7 @@ export class SpotifyService {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: 20000, // Aumentado a 20 segundos
+      timeout: 30000, // 30 segundos para peticiones a Spotify
     });
 
     // Si hay un token de usuario en las variables de entorno, usarlo

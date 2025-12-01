@@ -25,9 +25,10 @@ export class SyncService {
 
     for (const artistName of ARTISTS) {
       try {
-        console.log(`\n🎤 Procesando artista: ${artistName}`);
+        console.log(`\n🎤 Procesando artista: ${artistName} (${new Date().toISOString()})`);
 
         // 1. Buscar el ID del artista
+        console.log(`   🔍 Buscando artista en Spotify...`);
         const artist = await this.spotify.searchArtist(artistName);
         if (!artist) {
           console.warn(`⚠️  No se encontró el artista: ${artistName}`);

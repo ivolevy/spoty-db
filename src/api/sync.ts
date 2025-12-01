@@ -32,10 +32,10 @@ export async function syncArtists(req: Request, res: Response) {
     // Ejecutar sincronización en segundo plano
     const syncService = new SyncService(spotifyInstance);
     
-    // Ejecutar con timeout aumentado a 2 minutos (120 segundos)
+    // Ejecutar con timeout aumentado a 3 minutos (180 segundos) para dar tiempo a todas las peticiones
     const syncPromise = syncService.syncArtists();
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Sync timeout after 120s')), 120000)
+      setTimeout(() => reject(new Error('Sync timeout after 180s')), 180000)
     );
 
     await Promise.race([syncPromise, timeoutPromise]);
