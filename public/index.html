@@ -12,24 +12,67 @@
 <body>
     <div class="particles" id="particles"></div>
     
-    <div class="container">
-        <header>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
             <div class="logo">
                 <img src="logo.png" alt="spoty" class="logo-img">
             </div>
-            <div class="header-actions">
-                <button class="btn btn-secondary" id="connectSpotifyBtn">Conectar Spotify</button>
-                <button class="btn" id="syncBtn">Sincronizar</button>
-                <button class="btn" id="refreshBtn">Actualizar</button>
+        </div>
+        <nav class="sidebar-nav">
+            <button class="nav-item active" data-tab="tracks">
+                <span class="nav-icon">🎵</span>
+                <span class="nav-label">Canciones</span>
+            </button>
+            <button class="nav-item" data-tab="artists">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Artistas</span>
+            </button>
+            <button class="nav-item" data-tab="metrics">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Estadísticas</span>
+            </button>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="stats-mini">
+                <div class="stat-mini">
+                    <div class="stat-mini-value" id="totalTracksMini">-</div>
+                    <div class="stat-mini-label">Canciones</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="stat-mini-value" id="totalArtistsMini">-</div>
+                    <div class="stat-mini-label">Artistas</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <!-- Top Nav Bar (estilo de la imagen) -->
+        <header class="top-nav">
+            <div class="nav-banner">
+                <div class="nav-logo-section">
+                    <svg class="nav-logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" fill="currentColor"/>
+                    </svg>
+                    <span class="nav-logo-text">spoty</span>
+                </div>
+                <button class="nav-connect-btn" id="connectSpotifyBtn">Connect with Spotify</button>
             </div>
         </header>
 
-        <main>
-            <div class="hero">
-                <h1 class="title">Top Tracks</h1>
-                <h2 class="subtitle">Los mejores temas de tus artistas favoritos</h2>
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1 class="page-title" id="pageTitle">Canciones</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="syncBtn">Sincronizar</button>
+                    <button class="btn btn-icon" id="refreshBtn" title="Actualizar">🔄</button>
+                </div>
             </div>
 
+            <!-- Stats Cards -->
             <div class="stats-grid" id="statsGrid">
                 <div class="stat-card">
                     <div class="stat-value" id="totalTracks">-</div>
@@ -49,19 +92,14 @@
                 </div>
             </div>
 
-            <div class="tabs">
-                <button class="tab active" data-tab="tracks">Canciones</button>
-                <button class="tab" data-tab="artists">Artistas</button>
-                <button class="tab" data-tab="metrics">Estadísticas</button>
-            </div>
-
+            <!-- Tab Content -->
             <div class="content">
                 <div class="tab-content active" id="tracksTab">
                     <div class="search-bar">
-                        <input type="text" id="searchInput" placeholder="Buscar tracks..." class="search-input">
+                        <input type="text" id="searchInput" placeholder="Buscar canciones..." class="search-input">
                     </div>
                     <div class="tracks-grid" id="tracksGrid">
-                        <div class="loading">Cargando tracks...</div>
+                        <div class="loading">Cargando canciones...</div>
                     </div>
                 </div>
 
@@ -80,7 +118,16 @@
         </main>
     </div>
 
+    <!-- Track Detail Modal -->
+    <div class="modal-overlay" id="trackModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">&times;</button>
+            <div class="modal-body" id="modalBody">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
-

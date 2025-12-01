@@ -1,6 +1,39 @@
 import { createClient } from '@supabase/supabase-js';
 import { TrackData } from '../types';
 
+/**
+ * Normaliza una fecha de Spotify a formato PostgreSQL (YYYY-MM-DD)
+ * Spotify puede devolver:
+ * - Solo año: "2004" -> "2004-01-01"
+ * - Año-mes: "2004-01" -> "2004-01-01"
+ * - Fecha completa: "2004-01-01" -> "2004-01-01"
+ */
+function normalizeReleaseDate(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+  
+  const trimmed = dateStr.trim();
+  if (!trimmed) return null;
+  
+  // Si es solo año (4 dígitos)
+  if (/^\d{4}$/.test(trimmed)) {
+    return `${trimmed}-01-01`;
+  }
+  
+  // Si es año-mes (YYYY-MM)
+  if (/^\d{4}-\d{2}$/.test(trimmed)) {
+    return `${trimmed}-01`;
+  }
+  
+  // Si ya es una fecha completa (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // Si no coincide con ningún formato válido, retornar null
+  console.warn(`⚠️  Formato de fecha no reconocido: "${trimmed}", se guardará como null`);
+  return null;
+}
+
 export class SupabaseService {
   private client: ReturnType<typeof createClient>;
 
@@ -85,7 +118,7 @@ export class SupabaseService {
               artists: track.artists,
               artist_main: track.artist_main,
               album: track.album,
-              release_date: track.release_date || null,
+              release_date: normalizeReleaseDate(track.release_date),
               duration_ms: track.duration_ms,
               bpm: track.bpm,
               genres: track.genres,

@@ -9,7 +9,6 @@ function handleAuthCallback() {
     const expiresIn = urlParams.get('expires_in');
     
     if (auth === 'success' && token) {
-        // Guardar token en localStorage
         localStorage.setItem('spotify_user_token', token);
         if (refreshToken) {
             localStorage.setItem('spotify_refresh_token', refreshToken);
@@ -19,33 +18,24 @@ function handleAuthCallback() {
             localStorage.setItem('spotify_token_expires_at', expiresAt.toString());
         }
         
-        // Mostrar token en consola para facilitar copiarlo
         console.log('='.repeat(80));
         console.log('✅ TOKEN DE SPOTIFY OBTENIDO');
         console.log('='.repeat(80));
-        console.log('📋 Para usar en scripts locales, copia este token a tu .env:');
         console.log(`SPOTIFY_USER_TOKEN=${token}`);
         console.log('='.repeat(80));
-        console.log('💡 También puedes obtenerlo desde localStorage:');
-        console.log('   localStorage.getItem("spotify_user_token")');
-        console.log('='.repeat(80));
         
-        // Enviar token al backend
         fetch(`${API_BASE}/api/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token })
         }).then(() => {
-            showNotification('✅ Conectado con Spotify exitosamente. Revisa la consola para copiar el token.', 'success');
+            showNotification('✅ Conectado con Spotify exitosamente', 'success');
         }).catch(err => {
             console.error('Error enviando token al backend:', err);
             showNotification('✅ Conectado, pero hubo un error guardando el token en el servidor.', 'error');
         });
         
-        // Limpiar URL
         window.history.replaceState({}, document.title, window.location.pathname);
-        
-        // Actualizar estado del botón
         updateConnectButton();
     } else if (auth === 'error') {
         const message = urlParams.get('message') || 'Error desconocido';
@@ -54,7 +44,6 @@ function handleAuthCallback() {
     }
 }
 
-// Mostrar notificación
 function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
@@ -80,7 +69,6 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
-// Actualizar estado del botón de conexión
 function updateConnectButton() {
     const btn = document.getElementById('connectSpotifyBtn');
     const token = localStorage.getItem('spotify_user_token');
@@ -89,19 +77,18 @@ function updateConnectButton() {
     if (token && expiresAt) {
         const isExpired = Date.now() > parseInt(expiresAt);
         if (isExpired) {
-            btn.textContent = 'Conectar Spotify (Expirado)';
+            btn.textContent = 'Connect with Spotify (Expirado)';
             btn.style.opacity = '0.7';
         } else {
-            btn.textContent = '✅ Conectado';
+            btn.textContent = '✅ Connected';
             btn.style.opacity = '1';
         }
     } else {
-        btn.textContent = 'Conectar Spotify';
+        btn.textContent = 'Connect with Spotify';
         btn.style.opacity = '1';
     }
 }
 
-// Crear partículas animadas
 function createParticles() {
     const particlesContainer = document.getElementById('particles');
     const particleCount = 50;
@@ -117,20 +104,28 @@ function createParticles() {
     }
 }
 
-// Tabs
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        const tabName = tab.dataset.tab;
+// Sidebar Navigation
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+        const tabName = item.dataset.tab;
         
-        // Update tabs
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+        // Update nav items
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
         
-        // Update content
+        // Update tab content
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
         });
         document.getElementById(`${tabName}Tab`).classList.add('active');
+        
+        // Update page title
+        const titles = {
+            tracks: 'Canciones',
+            artists: 'Artistas',
+            metrics: 'Estadísticas'
+        };
+        document.getElementById('pageTitle').textContent = titles[tabName];
         
         // Load data if needed
         if (tabName === 'tracks') {
@@ -146,7 +141,7 @@ document.querySelectorAll('.tab').forEach(tab => {
 // Load tracks
 async function loadTracks() {
     const tracksGrid = document.getElementById('tracksGrid');
-    tracksGrid.innerHTML = '<div class="loading">Cargando tracks...</div>';
+    tracksGrid.innerHTML = '<div class="loading">Cargando canciones...</div>';
     
     try {
         const response = await fetch(`${API_BASE}/tracks`);
@@ -158,20 +153,138 @@ async function loadTracks() {
         }
         
         tracksGrid.innerHTML = tracks.map(track => `
-            <div class="track-card">
+            <div class="track-card" onclick="showTrackDetail('${track.spotify_id}')">
                 ${track.cover_url ? `<img src="${track.cover_url}" alt="${track.name}" class="track-cover">` : '<div class="track-cover"></div>'}
-                <div class="track-name">${track.name}</div>
-                <div class="track-artist">${track.artists?.join(', ') || track.artist_main}</div>
+                <div class="track-name">${escapeHtml(track.name)}</div>
+                <div class="track-artist">${escapeHtml(track.artists?.join(', ') || track.artist_main || '')}</div>
                 <div class="track-info">
                     <span class="track-bpm">${track.bpm ? Math.round(track.bpm) + ' BPM' : '—'}</span>
-                    ${track.preview_url ? `<audio controls class="track-preview"><source src="${track.preview_url}" type="audio/mpeg"></audio>` : '<span style="color: var(--text-secondary); font-size: 0.85rem;">Sin preview</span>'}
+                    ${track.preview_url ? `<button class="track-preview" onclick="event.stopPropagation(); playPreview('${track.preview_url}')">▶</button>` : '<span style="color: var(--text-secondary); font-size: 0.85rem;">Sin preview</span>'}
                 </div>
             </div>
         `).join('');
     } catch (error) {
         console.error('Error loading tracks:', error);
-        tracksGrid.innerHTML = '<div class="loading">Error cargando tracks</div>';
+        tracksGrid.innerHTML = '<div class="loading">Error cargando canciones</div>';
     }
+}
+
+// Show track detail modal
+async function showTrackDetail(spotifyId) {
+    const modal = document.getElementById('trackModal');
+    const modalBody = document.getElementById('modalBody');
+    
+    modalBody.innerHTML = '<div class="loading">Cargando detalles...</div>';
+    modal.classList.add('active');
+    
+    try {
+        const response = await fetch(`${API_BASE}/tracks/${spotifyId}`);
+        if (!response.ok) {
+            throw new Error('Track no encontrado');
+        }
+        const track = await response.json();
+        
+        const durationMinutes = Math.floor(track.duration_ms / 60000);
+        const durationSeconds = Math.floor((track.duration_ms % 60000) / 1000);
+        const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
+        
+        const releaseDate = track.release_date ? new Date(track.release_date).toLocaleDateString('es-ES', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        }) : 'No disponible';
+        
+        modalBody.innerHTML = `
+            <div class="track-detail-header">
+                ${track.cover_url ? `<img src="${track.cover_url}" alt="${track.name}" class="track-detail-cover">` : '<div class="track-detail-cover"></div>'}
+                <div class="track-detail-info">
+                    <h2 class="track-detail-name">${escapeHtml(track.name)}</h2>
+                    <div class="track-detail-artist">${escapeHtml(track.artists?.join(', ') || track.artist_main || '')}</div>
+                    <div class="track-detail-meta">
+                        <div class="track-detail-meta-item">
+                            <span class="track-detail-meta-label">BPM</span>
+                            <span class="track-detail-meta-value">${track.bpm ? Math.round(track.bpm) : 'N/A'}</span>
+                        </div>
+                        <div class="track-detail-meta-item">
+                            <span class="track-detail-meta-label">Duración</span>
+                            <span class="track-detail-meta-value">${formattedDuration}</span>
+                        </div>
+                        <div class="track-detail-meta-item">
+                            <span class="track-detail-meta-label">Fecha de Lanzamiento</span>
+                            <span class="track-detail-meta-value">${releaseDate}</span>
+                        </div>
+                        <div class="track-detail-meta-item">
+                            <span class="track-detail-meta-label">Álbum</span>
+                            <span class="track-detail-meta-value">${escapeHtml(track.album || 'N/A')}</span>
+                        </div>
+                    </div>
+                    ${track.preview_url ? `
+                        <div style="margin-top: 1.5rem;">
+                            <audio controls class="track-detail-preview">
+                                <source src="${track.preview_url}" type="audio/mpeg">
+                            </audio>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+            ${track.genres && track.genres.length > 0 ? `
+                <div class="track-detail-section">
+                    <h3 class="track-detail-section-title">Géneros</h3>
+                    <div class="track-detail-genres">
+                        ${track.genres.map(genre => `<span class="track-detail-genre">${escapeHtml(genre)}</span>`).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            <div class="track-detail-section">
+                <h3 class="track-detail-section-title">Información Adicional</h3>
+                <div class="track-detail-meta">
+                    <div class="track-detail-meta-item">
+                        <span class="track-detail-meta-label">Spotify ID</span>
+                        <span class="track-detail-meta-value" style="font-size: 0.9rem; font-weight: 400;">${track.spotify_id}</span>
+                    </div>
+                    <div class="track-detail-meta-item">
+                        <span class="track-detail-meta-label">Artista Principal</span>
+                        <span class="track-detail-meta-value">${escapeHtml(track.artist_main || 'N/A')}</span>
+                    </div>
+                    <div class="track-detail-meta-item">
+                        <span class="track-detail-meta-label">Última Actualización</span>
+                        <span class="track-detail-meta-value" style="font-size: 0.9rem; font-weight: 400;">${track.fetched_at ? new Date(track.fetched_at).toLocaleString('es-ES') : 'N/A'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading track detail:', error);
+        modalBody.innerHTML = '<div class="empty-state"><div class="empty-state-title">Error cargando detalles</div><p>' + error.message + '</p></div>';
+    }
+}
+
+// Close modal
+document.getElementById('closeModal')?.addEventListener('click', () => {
+    document.getElementById('trackModal').classList.remove('active');
+});
+
+document.getElementById('trackModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'trackModal') {
+        document.getElementById('trackModal').classList.remove('active');
+    }
+});
+
+// Play preview
+function playPreview(url) {
+    const audio = new Audio(url);
+    audio.play().catch(err => {
+        console.error('Error playing preview:', err);
+        showNotification('Error reproduciendo preview', 'error');
+    });
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // Load artists
@@ -191,7 +304,6 @@ async function loadArtists() {
             return;
         }
         
-        // Load tracks for each artist
         const artistsWithTracks = await Promise.all(
             artists.map(async (artist) => {
                 try {
@@ -221,7 +333,7 @@ async function loadArtists() {
         
         artistsGrid.innerHTML = validArtists.map(artist => `
             <div class="artist-card" onclick="loadArtistTracks('${artist.name.replace(/'/g, "\\'")}')">
-                <div class="artist-name">${artist.name}</div>
+                <div class="artist-name">${escapeHtml(artist.name)}</div>
                 <div class="artist-tracks">${artist.trackCount} ${artist.trackCount === 1 ? 'canción' : 'canciones'}</div>
             </div>
         `).join('');
@@ -248,7 +360,7 @@ async function loadMetrics() {
                         .sort(([,a], [,b]) => b - a)
                         .slice(0, 10)
                         .map(([genre, count]) => `
-                            <div class="genre-tag">${genre} (${count})</div>
+                            <div class="genre-tag">${escapeHtml(genre)} (${count})</div>
                         `).join('')}
                 </div>
             </div>
@@ -262,7 +374,7 @@ async function loadMetrics() {
                         ${Object.entries(metrics.avg_bpm_by_artist)
                             .map(([artist, bpm]) => `
                                 <div class="bpm-item">
-                                    <span class="bpm-artist">${artist}</span>
+                                    <span class="bpm-artist">${escapeHtml(artist)}</span>
                                     <span class="bpm-value">${Math.round(bpm)} BPM</span>
                                 </div>
                             `).join('')}
@@ -288,7 +400,10 @@ async function loadStats() {
         document.getElementById('totalArtists').textContent = Object.keys(metrics.tracks_by_artist || {}).length || 0;
         document.getElementById('avgBpm').textContent = metrics.bpm_average ? Math.round(metrics.bpm_average) + ' BPM' : 'N/A';
         
-        // Get last update from tracks
+        // Mini stats in sidebar
+        document.getElementById('totalTracksMini').textContent = metrics.total_tracks || 0;
+        document.getElementById('totalArtistsMini').textContent = Object.keys(metrics.tracks_by_artist || {}).length || 0;
+        
         const tracksResponse = await fetch(`${API_BASE}/tracks`);
         const tracks = await tracksResponse.json();
         if (tracks.length > 0) {
@@ -311,20 +426,15 @@ document.getElementById('searchInput')?.addEventListener('input', (e) => {
     });
 });
 
-// Sync button - ejecuta sincronización
+// Sync button
 document.getElementById('syncBtn')?.addEventListener('click', async () => {
     const btn = document.getElementById('syncBtn');
     btn.disabled = true;
     btn.textContent = 'Sincronizando...';
     
-    console.log('🔄 Click en botón Sincronizar detectado');
-    
     try {
-        // Verificar si hay token de usuario configurado
-        console.log('🔍 Verificando token de usuario...');
         const tokenStatus = await fetch(`${API_BASE}/api/token/status`);
         const status = await tokenStatus.json();
-        console.log('📊 Estado del token:', status);
         
         if (!status.hasToken) {
             const proceed = confirm('No hay token de usuario configurado. Sin él, no se podrá obtener BPM. ¿Deseas continuar de todas formas?');
@@ -335,7 +445,6 @@ document.getElementById('syncBtn')?.addEventListener('click', async () => {
             }
         }
         
-        console.log('🚀 Llamando a /api/sync...');
         const response = await fetch(`${API_BASE}/api/sync`, {
             method: 'POST',
             headers: {
@@ -343,34 +452,26 @@ document.getElementById('syncBtn')?.addEventListener('click', async () => {
             }
         });
         
-        console.log('📥 Respuesta recibida:', response.status, response.statusText);
-        
         if (response.ok || response.status === 202) {
-            const responseData = await response.json().catch(() => ({}));
-            console.log('✅ Respuesta del servidor:', responseData);
             showNotification('✅ Sincronización iniciada. Esto puede tardar unos minutos...', 'success');
             
-            // Esperar más tiempo antes de refrescar (la sync puede tardar)
             setTimeout(() => {
-                console.log('🔄 Refrescando datos...');
                 loadStats();
-                const activeTab = document.querySelector('.tab.active');
-                if (activeTab?.dataset.tab === 'tracks') {
+                const activeNav = document.querySelector('.nav-item.active');
+                if (activeNav?.dataset.tab === 'tracks') {
                     loadTracks();
-                } else if (activeTab?.dataset.tab === 'artists') {
+                } else if (activeNav?.dataset.tab === 'artists') {
                     loadArtists();
                 }
-            }, 10000); // Aumentado a 10 segundos
+            }, 10000);
         } else {
             const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-            console.error('❌ Error en respuesta:', errorData);
             showNotification(`❌ Error: ${errorData.error || 'Error al iniciar sincronización'}`, 'error');
         }
     } catch (error) {
-        console.error('❌ Error al sincronizar:', error);
+        console.error('Error al sincronizar:', error);
         showNotification('❌ Error al iniciar sincronización', 'error');
     } finally {
-        // Mantener el botón deshabilitado por un tiempo para evitar múltiples clicks
         setTimeout(() => {
             btn.disabled = false;
             btn.textContent = 'Sincronizar';
@@ -386,9 +487,9 @@ document.getElementById('connectSpotifyBtn')?.addEventListener('click', () => {
 // Refresh button
 document.getElementById('refreshBtn')?.addEventListener('click', () => {
     loadStats();
-    const activeTab = document.querySelector('.tab.active');
-    if (activeTab) {
-        const tabName = activeTab.dataset.tab;
+    const activeNav = document.querySelector('.nav-item.active');
+    if (activeNav) {
+        const tabName = activeNav.dataset.tab;
         if (tabName === 'tracks') {
             loadTracks();
         } else if (tabName === 'artists') {
@@ -401,7 +502,6 @@ document.getElementById('refreshBtn')?.addEventListener('click', () => {
 
 // Load artist tracks
 function loadArtistTracks(artistName) {
-    // Switch to tracks tab and filter
     document.querySelector('[data-tab="tracks"]').click();
     setTimeout(() => {
         document.getElementById('searchInput').value = artistName;
@@ -411,8 +511,7 @@ function loadArtistTracks(artistName) {
 
 // Initialize
 createParticles();
-handleAuthCallback(); // Manejar callback de autenticación
-updateConnectButton(); // Actualizar estado del botón
+handleAuthCallback();
+updateConnectButton();
 loadStats();
 loadTracks();
-
