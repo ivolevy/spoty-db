@@ -19,13 +19,24 @@ function handleAuthCallback() {
             localStorage.setItem('spotify_token_expires_at', expiresAt.toString());
         }
         
+        // Mostrar token en consola para facilitar copiarlo
+        console.log('='.repeat(80));
+        console.log('✅ TOKEN DE SPOTIFY OBTENIDO');
+        console.log('='.repeat(80));
+        console.log('📋 Para usar en scripts locales, copia este token a tu .env:');
+        console.log(`SPOTIFY_USER_TOKEN=${token}`);
+        console.log('='.repeat(80));
+        console.log('💡 También puedes obtenerlo desde localStorage:');
+        console.log('   localStorage.getItem("spotify_user_token")');
+        console.log('='.repeat(80));
+        
         // Enviar token al backend
         fetch(`${API_BASE}/api/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token })
         }).then(() => {
-            showNotification('✅ Conectado con Spotify exitosamente. Ahora puedes obtener BPM.', 'success');
+            showNotification('✅ Conectado con Spotify exitosamente. Revisa la consola para copiar el token.', 'success');
         }).catch(err => {
             console.error('Error enviando token al backend:', err);
             showNotification('✅ Conectado, pero hubo un error guardando el token en el servidor.', 'error');
