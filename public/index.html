@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Artists Sync</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    
+    <div class="container">
+        <header>
+            <div class="logo">
+                <span class="logo-icon">♪</span>
+                <span class="logo-text">spoty</span>
+            </div>
+            <button class="btn-connect" id="refreshBtn">🔄 Actualizar</button>
+        </header>
+
+        <main>
+            <div class="hero">
+                <h1 class="title">Spotify Artists</h1>
+                <h2 class="subtitle">Top Tracks Sync</h2>
+            </div>
+
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalTracks">-</div>
+                    <div class="stat-label">Total Canciones</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalArtists">-</div>
+                    <div class="stat-label">Artistas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgBpm">-</div>
+                    <div class="stat-label">BPM Promedio</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="lastUpdate">-</div>
+                    <div class="stat-label">Última Actualización</div>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="tracks">Tracks</button>
+                <button class="tab" data-tab="artists">Artistas</button>
+                <button class="tab" data-tab="metrics">Métricas</button>
+            </div>
+
+            <div class="content">
+                <div class="tab-content active" id="tracksTab">
+                    <div class="search-bar">
+                        <input type="text" id="searchInput" placeholder="Buscar tracks..." class="search-input">
+                    </div>
+                    <div class="tracks-grid" id="tracksGrid">
+                        <div class="loading">Cargando tracks...</div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="artistsTab">
+                    <div class="artists-grid" id="artistsGrid">
+                        <div class="loading">Cargando artistas...</div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="metricsTab">
+                    <div class="metrics-container" id="metricsContainer">
+                        <div class="loading">Cargando métricas...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

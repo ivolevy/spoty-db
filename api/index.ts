@@ -41,6 +41,9 @@ app.get('/artists/:name/tracks', getArtistTracks);
 app.get('/metrics/global', getGlobalMetrics);
 app.get('/metrics/artist/:name', getArtistMetrics);
 
+// Serve static files from public directory
+app.use(express.static('public'));
+
 // Export handler for Vercel
 export default app;
 
