@@ -1,5 +1,95 @@
 const API_BASE = window.location.origin;
 
+// Manejar callback de autenticación de Spotify
+function handleAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const auth = urlParams.get('auth');
+    const token = urlParams.get('token');
+    const refreshToken = urlParams.get('refresh_token');
+    const expiresIn = urlParams.get('expires_in');
+    
+    if (auth === 'success' && token) {
+        // Guardar token en localStorage
+        localStorage.setItem('spotify_user_token', token);
+        if (refreshToken) {
+            localStorage.setItem('spotify_refresh_token', refreshToken);
+        }
+        if (expiresIn) {
+            const expiresAt = Date.now() + (parseInt(expiresIn) * 1000);
+            localStorage.setItem('spotify_token_expires_at', expiresAt.toString());
+        }
+        
+        // Enviar token al backend
+        fetch(`${API_BASE}/api/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+        }).then(() => {
+            showNotification('✅ Conectado con Spotify exitosamente. Ahora puedes obtener BPM.', 'success');
+        }).catch(err => {
+            console.error('Error enviando token al backend:', err);
+            showNotification('✅ Conectado, pero hubo un error guardando el token en el servidor.', 'error');
+        });
+        
+        // Limpiar URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Actualizar estado del botón
+        updateConnectButton();
+    } else if (auth === 'error') {
+        const message = urlParams.get('message') || 'Error desconocido';
+        showNotification(`❌ Error: ${message}`, 'error');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+// Mostrar notificación
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#1db954' : type === 'error' ? '#e22134' : '#1a1a1a'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        max-width: 400px;
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+
+// Actualizar estado del botón de conexión
+function updateConnectButton() {
+    const btn = document.getElementById('connectSpotifyBtn');
+    const token = localStorage.getItem('spotify_user_token');
+    const expiresAt = localStorage.getItem('spotify_token_expires_at');
+    
+    if (token && expiresAt) {
+        const isExpired = Date.now() > parseInt(expiresAt);
+        if (isExpired) {
+            btn.textContent = 'Conectar Spotify (Expirado)';
+            btn.style.opacity = '0.7';
+        } else {
+            btn.textContent = '✅ Conectado';
+            btn.style.opacity = '1';
+        }
+    } else {
+        btn.textContent = 'Conectar Spotify';
+        btn.style.opacity = '1';
+    }
+}
+
 // Crear partículas animadas
 function createParticles() {
     const particlesContainer = document.getElementById('particles');
@@ -239,6 +329,11 @@ document.getElementById('syncBtn')?.addEventListener('click', async () => {
     }
 });
 
+// Connect Spotify button
+document.getElementById('connectSpotifyBtn')?.addEventListener('click', () => {
+    window.location.href = `${API_BASE}/api/auth/login`;
+});
+
 // Refresh button
 document.getElementById('refreshBtn')?.addEventListener('click', () => {
     loadStats();
@@ -267,6 +362,8 @@ function loadArtistTracks(artistName) {
 
 // Initialize
 createParticles();
+handleAuthCallback(); // Manejar callback de autenticación
+updateConnectButton(); // Actualizar estado del botón
 loadStats();
 loadTracks();
 

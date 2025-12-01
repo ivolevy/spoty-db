@@ -15,8 +15,8 @@ Copia `.env.example` a `.env` y completa las variables:
 ```env
 SPOTIFY_CLIENT_ID=tu_client_id
 SPOTIFY_CLIENT_SECRET=tu_client_secret
-SPOTIFY_REDIRECT_URI=http://localhost:3000/api/auth/callback  # Para autenticación de usuario
-SPOTIFY_USER_TOKEN=opcional_token_de_usuario  # Para obtener BPM (ver SPOTIFY_USER_AUTH.md)
+SPOTIFY_REDIRECT_URI=https://tu-dominio.vercel.app/api/auth/callback  # URL de Vercel (obligatorio)
+SPOTIFY_USER_TOKEN=opcional_token_de_usuario  # Se configura automáticamente al conectar desde el frontend
 
 SUPABASE_URL=tu_supabase_url
 SUPABASE_ANON_KEY=tu_anon_key
@@ -25,11 +25,28 @@ SUPABASE_SECRET_KEY=tu_secret_key
 PORT=3000
 ```
 
-### Autenticación de Usuario (Opcional - Para obtener BPM)
+### Autenticación de Usuario (Para obtener BPM)
 
-Para obtener BPM y otras características de audio, necesitas autenticar un usuario. Ver `SPOTIFY_USER_AUTH.md` para instrucciones completas.
+**IMPORTANTE**: Spotify solo permite usar la URL de producción (Vercel) como Redirect URI.
 
-**Método rápido (temporal)**:
+**Pasos**:
+1. Configura en Spotify Dashboard:
+   - Ve a https://developer.spotify.com/dashboard
+   - Selecciona tu app
+   - En "Redirect URIs", agrega: `https://tu-dominio.vercel.app/api/auth/callback`
+   - Guarda los cambios
+
+2. Configura en `.env`:
+   ```env
+   SPOTIFY_REDIRECT_URI=https://tu-dominio.vercel.app/api/auth/callback
+   ```
+
+3. Conecta desde el frontend:
+   - Click en "Conectar Spotify" en la interfaz web
+   - Autoriza la app
+   - El token se guardará automáticamente y se usará para obtener BPM
+
+**Alternativa (temporal para pruebas)**:
 1. Ve a https://developer.spotify.com/console/get-audio-features/
 2. Click en "Get Token" y autoriza
 3. Copia el token y agrégalo a `.env` como `SPOTIFY_USER_TOKEN=tu_token`

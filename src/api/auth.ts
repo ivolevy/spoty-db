@@ -8,8 +8,16 @@ import axios from 'axios';
 export async function login(req: Request, res: Response) {
   try {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
-    const redirectUri = process.env.SPOTIFY_REDIRECT_URI || 
-      `${req.protocol}://${req.get('host')}/api/auth/callback`;
+    
+    // Usar la redirect URI de las variables de entorno o construirla automáticamente
+    let redirectUri = process.env.SPOTIFY_REDIRECT_URI;
+    
+    if (!redirectUri) {
+      // En Vercel, usar la URL del request
+      const host = req.get('host');
+      const protocol = req.protocol || 'https';
+      redirectUri = `${protocol}://${host}/api/auth/callback`;
+    }
     
     if (!clientId) {
       return res.status(500).json({ error: 'SPOTIFY_CLIENT_ID no configurado' });
@@ -51,8 +59,16 @@ export async function callback(req: Request, res: Response) {
 
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-    const redirectUri = process.env.SPOTIFY_REDIRECT_URI || 
-      `${req.protocol}://${req.get('host')}/api/auth/callback`;
+    
+    // Usar la redirect URI de las variables de entorno o construirla automáticamente
+    let redirectUri = process.env.SPOTIFY_REDIRECT_URI;
+    
+    if (!redirectUri) {
+      // En Vercel, usar la URL del request
+      const host = req.get('host');
+      const protocol = req.protocol || 'https';
+      redirectUri = `${protocol}://${host}/api/auth/callback`;
+    }
     
     if (!clientId || !clientSecret) {
       return res.redirect('/?auth=error&message=Credenciales no configuradas');
@@ -76,18 +92,9 @@ export async function callback(req: Request, res: Response) {
     
     const { access_token, refresh_token, expires_in } = response.data;
     
-    // Guardar token en variable de entorno temporal (en producción, usar Redis o Supabase)
-    // Por ahora, solo mostramos el token para que el usuario lo copie a .env
-    const tokenInfo = {
-      access_token,
-      refresh_token,
-      expires_in,
-      instructions: 'Copia el access_token a tu archivo .env como SPOTIFY_USER_TOKEN'
-    };
-    
-    // Redirigir con el token en la URL (solo para desarrollo)
-    // En producción, guardar en base de datos
-    res.redirect(`/?auth=success&token=${access_token.substring(0, 20)}...`);
+    // Guardar token en localStorage del frontend mediante query param
+    // El frontend lo capturará y lo guardará
+    res.redirect(`/?auth=success&token=${access_token}&refresh_token=${refresh_token}&expires_in=${expires_in}`);
   } catch (error: any) {
     console.error('Error en callback:', error);
     const errorMsg = error.response?.data?.error_description || error.message || 'Error desconocido';

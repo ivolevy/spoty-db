@@ -5,12 +5,18 @@ import { getAllTracks, getTrackById } from '../src/api/tracks';
 import { getAllArtists, getArtistTracks } from '../src/api/artists';
 import { getGlobalMetrics, getArtistMetrics } from '../src/api/metrics';
 import { login, callback } from '../src/api/auth';
+import { setUserToken, getTokenStatus, setSpotifyServiceInstance } from '../src/api/token';
+import { SpotifyService } from '../src/services/spotify';
 
 dotenv.config();
 
 const app = express();
 
 app.use(express.json());
+
+// Crear instancia compartida de SpotifyService para compartir tokens
+const spotifyService = new SpotifyService();
+setSpotifyServiceInstance(spotifyService);
 
 // Serve static files from public directory
 app.use(express.static('public'));
@@ -28,6 +34,10 @@ app.get('/', (req, res) => {
 // Auth endpoints
 app.get('/api/auth/login', login);
 app.get('/api/auth/callback', callback);
+
+// Token endpoints
+app.post('/api/token', setUserToken);
+app.get('/api/token/status', getTokenStatus);
 
 // Tracks endpoints
 app.get('/tracks', getAllTracks);

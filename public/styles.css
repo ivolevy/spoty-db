@@ -102,6 +102,16 @@ header {
     font-family: inherit;
 }
 
+.btn-secondary {
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+}
+
+.btn-secondary:hover {
+    background: rgba(29, 185, 84, 0.1);
+}
+
 .btn:hover:not(:disabled) {
     background: var(--green-hover);
     transform: translateY(-1px);

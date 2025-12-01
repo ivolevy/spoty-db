@@ -8,8 +8,9 @@ export class SyncService {
   private spotify: SpotifyService;
   private supabase: SupabaseService;
 
-  constructor() {
-    this.spotify = new SpotifyService();
+  constructor(spotifyService?: SpotifyService) {
+    // Permitir inyectar una instancia de SpotifyService para compartir tokens
+    this.spotify = spotifyService || new SpotifyService();
     this.supabase = new SupabaseService();
   }
 

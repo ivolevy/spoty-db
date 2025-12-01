@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { SyncService } from '../src/services/sync';
+import { getSpotifyServiceInstance } from '../src/api/token';
+import { SpotifyService } from '../src/services/spotify';
 
 /**
  * Endpoint para Vercel Cron Job
@@ -30,7 +32,9 @@ export default async function handler(
 
     // Ejecutar sincronización en segundo plano (sin await para que no bloquee)
     // Pero necesitamos await para que los errores se capturen
-    const syncService = new SyncService();
+    // Usar instancia compartida de SpotifyService si está disponible (para usar token de usuario)
+    const spotifyInstance = getSpotifyServiceInstance() || new SpotifyService();
+    const syncService = new SyncService(spotifyInstance);
     
     // Ejecutar con timeout global de 50 segundos (límite de Vercel para funciones)
     const syncPromise = syncService.syncArtists();
