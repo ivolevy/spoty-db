@@ -36,9 +36,10 @@ En la página de tu app, verifica:
 1. **App Name**: Nombre de tu app
 2. **Client ID**: Tu Client ID (debe coincidir con `.env`)
 3. **Client Secret**: Click en "View client secret" (debe coincidir con `.env`)
-4. **Redirect URIs**: Para Client Credentials Flow no es necesario, pero puedes agregar:
-   - `http://localhost:3000/callback` (para desarrollo)
-   - `https://tu-dominio.vercel.app/callback` (para producción)
+4. **Redirect URIs**: Para Client Credentials Flow NO es necesario, pero si quieres agregarlo:
+   - `https://spoty-dbtracks.vercel.app/callback` (para producción)
+   - **IMPORTANTE**: Debe empezar con `https://` (no solo el dominio)
+   - Spotify NO permite `localhost` en algunas configuraciones, por eso no te deja ponerlo
 
 ### Paso 3: Verificar Permisos/Scopes
 **IMPORTANTE**: Client Credentials Flow tiene limitaciones:
