@@ -178,31 +178,44 @@ export class SupabaseService {
   }
 
   /**
-   * Obtiene todos los artistas únicos
+   * Obtiene todos los artistas únicos que tienen tracks
    */
   async getAllArtists(): Promise<Array<{ name: string; id: string }>> {
     try {
+      // Obtener artistas únicos con conteo de tracks
       const { data, error } = await this.client
         .from('artist_tracks')
-        .select('artist_main, artists')
-        .order('artist_main');
+        .select('artist_main')
+        .not('artist_main', 'is', null);
 
       if (error) {
         throw error;
       }
 
-      // Obtener artistas únicos
-      const artistMap = new Map<string, string>();
+      // Contar tracks por artista y solo incluir artistas con tracks
+      const artistCountMap = new Map<string, number>();
 
       (data || []).forEach((track: any) => {
-        if (track.artist_main && !artistMap.has(track.artist_main)) {
-          // Buscar el ID del artista principal en el array de artists
-          // Por ahora usamos el nombre como ID, ya que no tenemos el spotify_id del artista guardado
-          artistMap.set(track.artist_main, track.artist_main);
+        if (track.artist_main) {
+          artistCountMap.set(
+            track.artist_main,
+            (artistCountMap.get(track.artist_main) || 0) + 1
+          );
         }
       });
 
-      return Array.from(artistMap.entries()).map(([name, id]) => ({ name, id }));
+      // Filtrar solo artistas que tienen al menos 1 track
+      const artists = Array.from(artistCountMap.entries())
+        .filter(([, count]) => count > 0)
+        .map(([name, count]) => ({ name, id: name, trackCount: count }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      console.log(`📊 Artistas encontrados con tracks: ${artists.length}`);
+      artists.forEach(artist => {
+        console.log(`   - ${artist.name}: ${artist.trackCount} tracks`);
+      });
+
+      return artists.map(({ name, id }) => ({ name, id }));
     } catch (error) {
       console.error('Error obteniendo artistas:', error);
       throw error;
