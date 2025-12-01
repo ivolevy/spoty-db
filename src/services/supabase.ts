@@ -34,36 +34,46 @@ export class SupabaseService {
       console.log(`   📊 Preparando ${uniqueTracks.length} tracks únicos (de ${tracks.length} totales) para guardar`);
       
       // Verificar si hay duplicados en la base de datos antes de guardar
+      // Esto es una optimización: el upsert ya maneja duplicados, pero esto evita peticiones innecesarias
       const spotifyIds = uniqueTracks.map(t => t.spotify_id);
-      const { data: existingTracks, error: checkError } = await this.client
-        .from('artist_tracks')
-        .select('spotify_id')
-        .in('spotify_id', spotifyIds);
+      let tracksToSave = uniqueTracks;
       
-      if (checkError) {
-        console.warn(`   ⚠️  Error verificando duplicados: ${checkError.message}`);
-      } else if (existingTracks && existingTracks.length > 0) {
-        const existingIds = new Set(existingTracks.map((t: any) => t.spotify_id));
-        const newTracks = uniqueTracks.filter(t => !existingIds.has(t.spotify_id));
-        console.log(`   🔍 Encontrados ${existingTracks.length} tracks existentes, ${newTracks.length} nuevos tracks`);
+      try {
+        const { data: existingTracks, error: checkError } = await this.client
+          .from('artist_tracks')
+          .select('spotify_id')
+          .in('spotify_id', spotifyIds);
         
-        if (newTracks.length === 0) {
-          console.log(`   ✅ Todos los tracks ya existen en la base de datos. No hay nada nuevo que guardar.`);
-          return;
+        if (checkError) {
+          console.warn(`   ⚠️  Error verificando duplicados: ${checkError.message}`);
+          console.warn(`   Continuando con upsert (el upsert maneja duplicados automáticamente)`);
+        } else if (existingTracks && existingTracks.length > 0) {
+          const existingIds = new Set(existingTracks.map((t: any) => t.spotify_id));
+          const newTracks = uniqueTracks.filter(t => !existingIds.has(t.spotify_id));
+          console.log(`   🔍 Encontrados ${existingTracks.length} tracks existentes en la BD`);
+          console.log(`   📦 ${newTracks.length} tracks nuevos para guardar`);
+          
+          if (newTracks.length === 0) {
+            console.log(`   ✅ Todos los tracks ya existen en la base de datos. No hay nada nuevo que guardar.`);
+            return;
+          }
+          
+          tracksToSave = newTracks;
+        } else {
+          console.log(`   📦 Todos los tracks son nuevos (${uniqueTracks.length} tracks)`);
         }
-        
-        // Usar solo los tracks nuevos para el upsert (aunque el upsert maneja duplicados, esto es más eficiente)
-        const tracksToSave = newTracks;
-      } else {
-        const tracksToSave = uniqueTracks;
+      } catch (error: any) {
+        console.warn(`   ⚠️  Error verificando duplicados: ${error.message}`);
+        console.warn(`   Continuando con upsert (el upsert maneja duplicados con onConflict)`);
       }
 
       // Hacer upsert en batches de 50 para evitar problemas
+      // El upsert con onConflict: 'spotify_id' previene duplicados automáticamente
       const batchSize = 50;
       let savedCount = 0;
       
-      for (let i = 0; i < uniqueTracks.length; i += batchSize) {
-        const batch = uniqueTracks.slice(i, i + batchSize);
+      for (let i = 0; i < tracksToSave.length; i += batchSize) {
+        const batch = tracksToSave.slice(i, i + batchSize);
         console.log(`   💾 Guardando batch ${Math.floor(i / batchSize) + 1} (${batch.length} tracks)...`);
         
         const { data, error } = await this.client
