@@ -14,13 +14,14 @@ export async function login(req: Request, res: Response) {
     
     if (!redirectUri) {
       // Si no está configurada, construirla desde el request
-      // En Vercel, siempre usar HTTPS
       const host = req.get('host');
-      // Verificar headers de Vercel para HTTPS
+      // Verificar si estamos en Vercel o localhost
+      const isVercel = process.env.VERCEL === '1';
       const isHttps = req.get('x-forwarded-proto') === 'https' || 
                       req.get('x-forwarded-ssl') === 'on' ||
-                      process.env.VERCEL === '1';
-      const protocol = isHttps ? 'https' : 'https'; // Siempre HTTPS en producción
+                      isVercel;
+      // En localhost usar HTTP, en producción HTTPS
+      const protocol = isHttps ? 'https' : 'http';
       redirectUri = `${protocol}://${host}/api/auth/callback`;
       console.warn(`⚠️  SPOTIFY_REDIRECT_URI no configurada. Usando: ${redirectUri}`);
       console.warn(`⚠️  IMPORTANTE: Esta URI debe coincidir EXACTAMENTE con la configurada en Spotify Dashboard`);

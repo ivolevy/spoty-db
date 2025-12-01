@@ -5,8 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "dev": "tsx watch api/index.ts",
+    "start": "tsx api/index.ts",
+    "start:local": "PORT=3000 tsx api/index.ts",
     "sync": "tsx scripts/cron-sync.ts",
     "setup-db": "tsx scripts/setup-database.ts",
     "test-spotify": "tsx scripts/test-spotify-credentials.ts",
@@ -14,7 +15,8 @@
     "test-token-bpm": "tsx scripts/test-token-bpm.ts",
     "manual-sync": "tsx scripts/manual-sync.ts",
     "sync-dale-play": "tsx scripts/sync-dale-play.ts",
-    "get-token": "tsx scripts/get-spotify-token.ts"
+    "get-token": "tsx scripts/get-spotify-token.ts",
+    "local": "tsx scripts/start-local.ts"
   },
   "keywords": ["spotify", "supabase", "sync"],
   "author": "",
