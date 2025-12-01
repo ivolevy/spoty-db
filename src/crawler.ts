@@ -54,7 +54,7 @@ export class SpotifyCrawler {
       this.processedIds = new Set();
     }
 
-    console.log(`🎤 Buscando por ${config.crawler.knownArtists.length} artistas: ${config.crawler.knownArtists.join(', ')}`);
+    console.log(`🎤 Buscando por ${config.crawler.knownArtists.length} artistas`);
 
     // Primero buscar por artistas conocidos (más eficiente)
     if (config.crawler.knownArtists.length > 0) {
@@ -62,7 +62,12 @@ export class SpotifyCrawler {
         if (this.stats.totalSaved >= this.maxTracksLimit) {
           break;
         }
-        await this.searchByArtist(artist);
+        try {
+          await this.searchByArtist(artist);
+        } catch (error: any) {
+          console.error(`Error buscando ${artist}:`, error.message);
+          continue;
+        }
       }
     }
 
