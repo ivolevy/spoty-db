@@ -17,6 +17,7 @@ export class SpotifyClient {
       headers: {
         'Content-Type': 'application/json',
       },
+      timeout: 10000, // 10 segundos de timeout
     });
   }
 
@@ -90,6 +91,17 @@ export class SpotifyClient {
         return response.data;
       } catch (error) {
         const axiosError = error as AxiosError;
+
+        // Timeout
+        if (axiosError.code === 'ECONNABORTED' || axiosError.message.includes('timeout')) {
+          console.error(`Timeout en petición a ${url}. Reintentando...`);
+          retries++;
+          if (retries < config.spotify.rateLimitRetries) {
+            await this.sleep(1000);
+            continue;
+          }
+          throw new Error(`Timeout después de ${retries} intentos`);
+        }
 
         // Rate limit (429)
         if (axiosError.response?.status === 429) {
