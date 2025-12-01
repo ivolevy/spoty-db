@@ -50,11 +50,12 @@ export class SupabaseService {
 
   /**
    * Hace upsert de tracks en la base de datos
+   * Retorna el número de tracks realmente guardados
    */
-  async upsertTracks(tracks: TrackData[]): Promise<void> {
+  async upsertTracks(tracks: TrackData[]): Promise<number> {
     if (tracks.length === 0) {
       console.warn('⚠️  upsertTracks llamado con array vacío');
-      return;
+      return 0;
     }
 
     try {
@@ -88,7 +89,7 @@ export class SupabaseService {
           
           if (newTracks.length === 0) {
             console.log(`   ✅ Todos los tracks ya existen en la base de datos. No hay nada nuevo que guardar.`);
-            return;
+            return 0;
           }
           
           tracksToSave = newTracks;
@@ -141,8 +142,21 @@ export class SupabaseService {
         console.log(`   ✅ Batch ${Math.floor(i / batchSize) + 1} guardado exitosamente (${savedCount}/${tracksToSave.length})`);
       }
       
+      const duplicatesFiltered = tracks.length - uniqueTracks.length;
+      const existingFiltered = uniqueTracks.length - tracksToSave.length;
+      const totalFiltered = duplicatesFiltered + existingFiltered;
+      
+      if (totalFiltered > 0) {
+        console.log(`   📊 Resumen:`);
+        console.log(`      - Tracks procesados: ${tracks.length}`);
+        console.log(`      - Duplicados en batch filtrados: ${duplicatesFiltered}`);
+        console.log(`      - Ya existían en BD: ${existingFiltered}`);
+        console.log(`      - Nuevos guardados: ${savedCount}`);
+      }
+      
       console.log(`   ✅ Total: ${savedCount} tracks guardados en Supabase`);
       console.log(`   🔒 Protección contra duplicados: onConflict en 'spotify_id' asegura que no se guarden duplicados`);
+      return savedCount;
     } catch (error: any) {
       console.error('❌ Error haciendo upsert de tracks:');
       console.error('   Error message:', error.message);
@@ -316,15 +330,20 @@ export class SupabaseService {
       // Tracks por artista
       const tracksByArtist: Record<string, number> = {};
       tracks.forEach((track: any) => {
-        if (track.artist_main) {
-          tracksByArtist[track.artist_main] = (tracksByArtist[track.artist_main] || 0) + 1;
+        // Usar artist_main si existe, sino usar el primer artista del array artists
+        const artistName = track.artist_main || (track.artists && Array.isArray(track.artists) && track.artists.length > 0 ? track.artists[0] : null);
+        if (artistName) {
+          tracksByArtist[artistName] = (tracksByArtist[artistName] || 0) + 1;
         }
       });
 
       // BPM promedio por artista
       const avgBpmByArtist: Record<string, number> = {};
       Object.keys(tracksByArtist).forEach((artist) => {
-        const artistTracks = tracks.filter((t: any) => t.artist_main === artist);
+        const artistTracks = tracks.filter((t: any) => {
+          const trackArtist = t.artist_main || (t.artists && Array.isArray(t.artists) && t.artists.length > 0 ? t.artists[0] : null);
+          return trackArtist === artist;
+        });
         const artistTracksWithBpm = artistTracks.filter((t: any) => t.bpm !== null);
         if (artistTracksWithBpm.length > 0) {
           avgBpmByArtist[artist] =
@@ -336,7 +355,10 @@ export class SupabaseService {
       // Top artists con duración total
       const topArtists = Object.entries(tracksByArtist)
         .map(([artist, count]) => {
-          const artistTracks = tracks.filter((t: any) => t.artist_main === artist);
+          const artistTracks = tracks.filter((t: any) => {
+            const trackArtist = t.artist_main || (t.artists && Array.isArray(t.artists) && t.artists.length > 0 ? t.artists[0] : null);
+            return trackArtist === artist;
+          });
           const totalDuration = artistTracks.reduce((sum: number, t: any) => sum + (t.duration_ms || 0), 0);
           const durationMinutes = Math.floor(totalDuration / 60000);
           const durationHours = Math.floor(durationMinutes / 60);
@@ -360,11 +382,12 @@ export class SupabaseService {
       const albumsByCount: Record<string, { count: number; artist: string; cover?: string }> = {};
       tracks.forEach((track: any) => {
         if (track.album) {
-          const key = `${track.album}|${track.artist_main || ''}`;
+          const artistName = track.artist_main || (track.artists && Array.isArray(track.artists) && track.artists.length > 0 ? track.artists[0] : '');
+          const key = `${track.album}|${artistName}`;
           if (!albumsByCount[key]) {
             albumsByCount[key] = {
               count: 0,
-              artist: track.artist_main || '',
+              artist: artistName,
               cover: track.cover_url || null,
             };
           }

@@ -9,7 +9,11 @@
     "dev": "ts-node src/index.ts",
     "crawl": "ts-node src/crawler.ts",
     "sync": "ts-node src/sync.ts",
-    "setup-db": "ts-node src/setup-database.ts"
+    "setup-db": "ts-node src/setup-database.ts",
+    "sync-more-tracks": "ts-node scripts/sync-more-tracks.ts",
+    "verify-label": "ts-node scripts/verify-label.ts",
+    "verify-dale-play-artists": "ts-node scripts/verify-dale-play-artists.ts",
+    "remove-non-dale-play": "ts-node scripts/remove-non-dale-play.ts"
   },
   "keywords": ["spotify", "supabase", "music", "crawler"],
   "author": "",

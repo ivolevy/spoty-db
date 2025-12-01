@@ -13,6 +13,8 @@ export async function syncArtists(req: Request, res: Response) {
     console.log('🚀 INICIANDO SINCRONIZACIÓN MANUAL DESDE FRONTEND');
     console.log(`📅 Timestamp: ${new Date().toISOString()}`);
     console.log(`🌐 Request desde: ${req.get('origin') || req.get('referer') || 'unknown'}`);
+    console.log(`📍 URL completa: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
+    console.log(`🔍 Método: ${req.method}`);
     console.log('='.repeat(80));
 
     // Verificar token de usuario

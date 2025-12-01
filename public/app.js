@@ -93,8 +93,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         item.classList.add('active');
         
-        // Hide artist detail if showing
-        document.getElementById('artistDetailTab').classList.remove('active');
+        // No need to hide artist detail tab anymore (using modal)
         
         // Update tab content
         document.querySelectorAll('.tab-content').forEach(content => {
@@ -112,30 +111,50 @@ document.querySelectorAll('.nav-item').forEach(item => {
         
         // Load data if needed
         if (tabName === 'tracks') {
+            // Restaurar título original
+            document.getElementById('pageTitle').textContent = 'Canciones';
             loadTracks();
+            loadModuleMetrics('tracks');
         } else if (tabName === 'artists') {
             loadArtists();
+            loadModuleMetrics('artists');
         } else if (tabName === 'metrics') {
             loadMetrics();
+            loadModuleMetrics('metrics');
         }
     });
 });
 
 // Load tracks
-async function loadTracks() {
+async function loadTracks(genre = null) {
     const tracksGrid = document.getElementById('tracksGrid');
     tracksGrid.innerHTML = '<div class="loading">Cargando canciones...</div>';
     
     try {
-        const response = await fetch(`${API_BASE}/tracks`);
+        const url = genre ? `${API_BASE}/tracks?genre=${encodeURIComponent(genre)}` : `${API_BASE}/tracks`;
+        const response = await fetch(url);
         const tracks = await response.json();
         
         if (tracks.length === 0) {
-            tracksGrid.innerHTML = '<div class="empty-state"><div class="empty-state-title">No hay canciones</div><p>Ejecuta la sincronización para cargar tracks</p></div>';
+            const message = genre 
+                ? `<div class="empty-state-title">No hay canciones del género "${escapeHtml(genre)}"</div><p>Intenta con otro género</p>`
+                : '<div class="empty-state-title">No hay canciones</div><p>Ejecuta la sincronización para cargar tracks</p>';
+            tracksGrid.innerHTML = `<div class="empty-state">${message}</div>`;
             return;
         }
         
-        tracksGrid.innerHTML = tracks.map(track => {
+        // Mostrar filtro activo si hay género
+        let filterIndicator = '';
+        if (genre) {
+            filterIndicator = `
+                <div class="genre-filter-indicator">
+                    <span>Filtrando por: <strong>${escapeHtml(genre)}</strong></span>
+                    <button onclick="loadTracks()" class="clear-filter-btn">Limpiar filtro</button>
+                </div>
+            `;
+        }
+        
+        tracksGrid.innerHTML = filterIndicator + tracks.map(track => {
             const durationMinutes = Math.floor(track.duration_ms / 60000);
             const durationSeconds = Math.floor((track.duration_ms % 60000) / 1000);
             const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
@@ -164,6 +183,105 @@ async function loadTracks() {
         console.error('Error loading tracks:', error);
         tracksGrid.innerHTML = '<div class="loading">Error cargando canciones</div>';
     }
+}
+
+// Show tracks filtered by genre in modal
+async function showGenreTracks(genre) {
+    const modal = document.getElementById('trackModal');
+    const modalBody = document.getElementById('modalBody');
+    
+    modalBody.innerHTML = '<div class="loading">Cargando canciones del género...</div>';
+    modal.classList.add('active');
+    
+    try {
+        const response = await fetch(`${API_BASE}/tracks?genre=${encodeURIComponent(genre)}`);
+        if (!response.ok) {
+            throw new Error('Error obteniendo tracks');
+        }
+        const genreTracks = await response.json();
+        
+        if (genreTracks.length === 0) {
+            modalBody.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-title">No se encontraron canciones</div>
+                    <p>No hay canciones disponibles para el género "${escapeHtml(genre)}".</p>
+                </div>
+            `;
+            return;
+        }
+        
+        modalBody.innerHTML = `
+            <div class="genre-detail-header">
+                <h2 class="genre-detail-name">Género: ${escapeHtml(genre)}</h2>
+                <div class="genre-detail-meta">
+                    <span>${genreTracks.length} ${genreTracks.length === 1 ? 'canción' : 'canciones'}</span>
+                </div>
+            </div>
+            <div class="genre-search-container">
+                <input type="text" id="genreSearchInput" class="genre-search-input" placeholder="Buscar canciones..." onkeyup="filterGenreTracks('${escapeHtml(genre).replace(/'/g, "\\'")}')">
+            </div>
+            <div class="genre-tracks-list" id="genreTracksList">
+                ${renderGenreTracks(genreTracks)}
+            </div>
+        `;
+        
+        // Guardar las tracks originales para el filtro
+        window.currentGenreTracks = genreTracks;
+        window.currentGenre = genre;
+    } catch (error) {
+        console.error('Error loading genre tracks:', error);
+        modalBody.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-title">Error</div>
+                <p>No se pudieron cargar las canciones del género.</p>
+            </div>
+        `;
+    }
+}
+
+// Render genre tracks
+function renderGenreTracks(tracks) {
+    return tracks.map((track, index) => {
+        const durationMinutes = Math.floor(track.duration_ms / 60000);
+        const durationSeconds = Math.floor((track.duration_ms % 60000) / 1000);
+        const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
+        const isPlaying = currentPlayingId === track.spotify_id;
+        
+        return `
+            <div class="genre-track-item" onclick="showTrackDetail('${track.spotify_id}')">
+                ${track.cover_url ? `<img src="${track.cover_url}" alt="${escapeHtml(track.name)}" class="genre-track-cover">` : '<div class="genre-track-cover"></div>'}
+                <div class="genre-track-info">
+                    <div class="genre-track-name">${escapeHtml(track.name)}</div>
+                    <div class="genre-track-artist">${escapeHtml(track.artists?.join(', ') || track.artist_main || '')}</div>
+                </div>
+                <div class="genre-track-meta">
+                    ${track.preview_url ? `
+                        <button class="genre-track-preview-btn ${isPlaying ? 'playing' : ''}" onclick="event.stopPropagation(); togglePreview('${track.spotify_id}', '${track.preview_url}')">
+                            ${isPlaying ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'}
+                        </button>
+                    ` : ''}
+                    <span class="genre-track-duration">${formattedDuration}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Filter genre tracks
+function filterGenreTracks(genre) {
+    const searchInput = document.getElementById('genreSearchInput');
+    const searchTerm = searchInput.value.toLowerCase();
+    const tracksList = document.getElementById('genreTracksList');
+    
+    if (!window.currentGenreTracks) return;
+    
+    const filteredTracks = window.currentGenreTracks.filter(track => {
+        const trackName = (track.name || '').toLowerCase();
+        const trackArtist = (track.artists?.join(', ') || track.artist_main || '').toLowerCase();
+        return trackName.includes(searchTerm) || trackArtist.includes(searchTerm);
+    });
+    
+    tracksList.innerHTML = renderGenreTracks(filteredTracks);
 }
 
 // Toggle preview
@@ -300,6 +418,120 @@ async function showTrackDetail(spotifyId) {
     }
 }
 
+// Show album tracks modal
+async function showAlbumTracks(albumName, artistName) {
+    const modal = document.getElementById('trackModal');
+    const modalBody = document.getElementById('modalBody');
+    
+    modalBody.innerHTML = '<div class="loading">Cargando canciones del álbum...</div>';
+    modal.classList.add('active');
+    
+    try {
+        // Obtener todas las canciones y filtrar por álbum
+        const response = await fetch(`${API_BASE}/tracks`);
+        if (!response.ok) {
+            throw new Error('Error obteniendo tracks');
+        }
+        const allTracks = await response.json();
+        
+        // Filtrar por nombre de álbum y artista (si está disponible)
+        const albumTracks = allTracks.filter((track) => {
+            const trackAlbum = track.album || '';
+            const trackArtist = track.artist_main || (track.artists && track.artists.length > 0 ? track.artists[0] : '');
+            return trackAlbum.toLowerCase() === albumName.toLowerCase() && 
+                   (artistName === '' || trackArtist.toLowerCase() === artistName.toLowerCase());
+        });
+        
+        if (albumTracks.length === 0) {
+            modalBody.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-title">No se encontraron canciones</div>
+                    <p>No hay canciones disponibles para este álbum.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Obtener la portada del primer track
+        const coverUrl = albumTracks[0].cover_url || null;
+        
+        modalBody.innerHTML = `
+            <div class="album-detail-header">
+                ${coverUrl ? `<img src="${coverUrl}" alt="${escapeHtml(albumName)}" class="album-detail-cover">` : '<div class="album-detail-cover"></div>'}
+                <div class="album-detail-info">
+                    <h2 class="album-detail-name">${escapeHtml(albumName)}</h2>
+                    <div class="album-detail-artist">${escapeHtml(artistName || '')}</div>
+                    <div class="album-detail-meta">
+                        <span>${albumTracks.length} ${albumTracks.length === 1 ? 'canción' : 'canciones'}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="album-search-container">
+                <input type="text" id="albumSearchInput" class="album-search-input" placeholder="Buscar canciones..." onkeyup="filterAlbumTracks()">
+            </div>
+            <div class="album-tracks-list" id="albumTracksList">
+                ${renderAlbumTracks(albumTracks)}
+            </div>
+        `;
+        
+        // Guardar las tracks originales para el filtro
+        window.currentAlbumTracks = albumTracks;
+    } catch (error) {
+        console.error('Error loading album tracks:', error);
+        modalBody.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-title">Error</div>
+                <p>No se pudieron cargar las canciones del álbum.</p>
+            </div>
+        `;
+    }
+}
+
+// Render album tracks
+function renderAlbumTracks(tracks) {
+    return tracks.map((track, index) => {
+        const durationMinutes = Math.floor(track.duration_ms / 60000);
+        const durationSeconds = Math.floor((track.duration_ms % 60000) / 1000);
+        const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
+        const isPlaying = currentPlayingId === track.spotify_id;
+        
+        return `
+            <div class="album-track-item" onclick="showTrackDetail('${track.spotify_id}')">
+                <div class="album-track-number">${index + 1}</div>
+                <div class="album-track-info">
+                    <div class="album-track-name">${escapeHtml(track.name)}</div>
+                    <div class="album-track-artist">${escapeHtml(track.artists?.join(', ') || track.artist_main || '')}</div>
+                </div>
+                <div class="album-track-meta">
+                    ${track.preview_url ? `
+                        <button class="album-track-preview-btn ${isPlaying ? 'playing' : ''}" onclick="event.stopPropagation(); togglePreview('${track.spotify_id}', '${track.preview_url}')">
+                            ${isPlaying ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'}
+                        </button>
+                    ` : ''}
+                    <span class="album-track-duration">${formattedDuration}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Filter album tracks
+function filterAlbumTracks() {
+    const searchInput = document.getElementById('albumSearchInput');
+    const searchTerm = searchInput.value.toLowerCase();
+    const tracksList = document.getElementById('albumTracksList');
+    
+    if (!window.currentAlbumTracks) return;
+    
+    const filteredTracks = window.currentAlbumTracks.filter(track => {
+        const trackName = (track.name || '').toLowerCase();
+        const trackArtist = (track.artists?.join(', ') || track.artist_main || '').toLowerCase();
+        return trackName.includes(searchTerm) || trackArtist.includes(searchTerm);
+    });
+    
+    tracksList.innerHTML = renderAlbumTracks(filteredTracks);
+}
+
 // Close modal
 document.getElementById('closeModal')?.addEventListener('click', () => {
     document.getElementById('trackModal').classList.remove('active');
@@ -375,18 +607,13 @@ async function loadArtists() {
     }
 }
 
-// Show artist detail
+// Show artist detail in modal
 async function showArtistDetail(artistName) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    const modal = document.getElementById('trackModal');
+    const modalBody = document.getElementById('modalBody');
     
-    // Show artist detail tab
-    document.getElementById('artistDetailTab').classList.add('active');
-    document.getElementById('pageTitle').textContent = artistName;
-    
-    const artistDetail = document.getElementById('artistDetail');
-    artistDetail.innerHTML = '<div class="loading">Cargando artista...</div>';
+    modalBody.innerHTML = '<div class="loading">Cargando artista...</div>';
+    modal.classList.add('active');
     
     try {
         const tracksResponse = await fetch(`${API_BASE}/artists/${encodeURIComponent(artistName)}/tracks`);
@@ -396,58 +623,185 @@ async function showArtistDetail(artistName) {
         const tracks = await tracksResponse.json();
         
         if (!Array.isArray(tracks) || tracks.length === 0) {
-            artistDetail.innerHTML = `
+            modalBody.innerHTML = `
                 <div class="artist-detail-header">
                     <h2 class="artist-detail-name">${escapeHtml(artistName)}</h2>
                     <div class="artist-detail-info">No hay canciones disponibles</div>
+                </div>
+                <div class="empty-state">
+                    <p>Este artista no tiene canciones guardadas.</p>
                 </div>
             `;
             return;
         }
         
-        artistDetail.innerHTML = `
+        modalBody.innerHTML = `
             <div class="artist-detail-header">
                 <h2 class="artist-detail-name">${escapeHtml(artistName)}</h2>
                 <div class="artist-detail-info">${tracks.length} ${tracks.length === 1 ? 'canción' : 'canciones'}</div>
             </div>
-            <div class="artist-tracks-list">
-                ${tracks.map(track => {
-                    const durationMinutes = Math.floor(track.duration_ms / 60000);
-                    const durationSeconds = Math.floor((track.duration_ms % 60000) / 1000);
-                    const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
-                    const isPlaying = currentPlayingId === track.spotify_id;
-                    
-                    return `
-                        <div class="track-item" onclick="showTrackDetail('${track.spotify_id}')">
-                            ${track.cover_url ? `<img src="${track.cover_url}" alt="${track.name}" class="track-cover">` : '<div class="track-cover"></div>'}
-                            <div class="track-info">
-                                <div class="track-name">${escapeHtml(track.name)}</div>
-                                <div class="track-artist">${escapeHtml(track.album || '')}</div>
-                            </div>
-                            <div class="track-meta">
-                                <span class="track-bpm">${track.bpm ? Math.round(track.bpm) + ' BPM' : '—'}</span>
-                                ${track.preview_url ? `
-                                    <button class="track-preview-btn ${isPlaying ? 'playing' : ''}" onclick="event.stopPropagation(); togglePreview('${track.spotify_id}', '${track.preview_url}')">
-                                        ${isPlaying ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'}
-                                    </button>
-                                ` : ''}
-                                <span class="track-duration">${formattedDuration}</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
+            <div class="artist-search-container">
+                <input type="text" id="artistSearchInput" class="artist-search-input" placeholder="Buscar canciones..." onkeyup="filterArtistTracks('${escapeHtml(artistName).replace(/'/g, "\\'")}')">
+            </div>
+            <div class="artist-tracks-list" id="artistTracksList">
+                ${renderArtistTracks(tracks)}
             </div>
         `;
+        
+        // Guardar las tracks originales para el filtro
+        window.currentArtistTracks = tracks;
+        window.currentArtistName = artistName;
     } catch (error) {
         console.error('Error loading artist detail:', error);
-        artistDetail.innerHTML = '<div class="empty-state"><div class="empty-state-title">Error cargando artista</div><p>' + error.message + '</p></div>';
+        modalBody.innerHTML = '<div class="empty-state"><div class="empty-state-title">Error cargando artista</div><p>' + error.message + '</p></div>';
     }
 }
 
-// Go back to artists
+// Render artist tracks
+function renderArtistTracks(tracks) {
+    return tracks.map(track => {
+        const durationMinutes = Math.floor(track.duration_ms / 60000);
+        const durationSeconds = Math.floor((track.duration_ms % 60000) / 1000);
+        const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
+        const isPlaying = currentPlayingId === track.spotify_id;
+        
+        return `
+            <div class="track-item" onclick="showTrackDetail('${track.spotify_id}')">
+                ${track.cover_url ? `<img src="${track.cover_url}" alt="${track.name}" class="track-cover">` : '<div class="track-cover"></div>'}
+                <div class="track-info">
+                    <div class="track-name">${escapeHtml(track.name)}</div>
+                    <div class="track-artist">${escapeHtml(track.album || '')}</div>
+                </div>
+                <div class="track-meta">
+                    <span class="track-bpm">${track.bpm ? Math.round(track.bpm) + ' BPM' : '—'}</span>
+                    ${track.preview_url ? `
+                        <button class="track-preview-btn ${isPlaying ? 'playing' : ''}" onclick="event.stopPropagation(); togglePreview('${track.spotify_id}', '${track.preview_url}')">
+                            ${isPlaying ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>' : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'}
+                        </button>
+                    ` : ''}
+                    <span class="track-duration">${formattedDuration}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Filter artist tracks
+function filterArtistTracks(artistName) {
+    const searchInput = document.getElementById('artistSearchInput');
+    const searchTerm = searchInput.value.toLowerCase();
+    const tracksList = document.getElementById('artistTracksList');
+    
+    if (!window.currentArtistTracks) return;
+    
+    const filteredTracks = window.currentArtistTracks.filter(track => {
+        const trackName = (track.name || '').toLowerCase();
+        const trackAlbum = (track.album || '').toLowerCase();
+        return trackName.includes(searchTerm) || trackAlbum.includes(searchTerm);
+    });
+    
+    tracksList.innerHTML = renderArtistTracks(filteredTracks);
+}
+
+// Go back to artists (no longer needed, using modal)
 function goBackToArtists() {
-    document.getElementById('artistDetailTab').classList.remove('active');
+    // Function kept for compatibility but no longer needed
     document.querySelector('[data-tab="artists"]').click();
+}
+
+// Load module-specific metrics (summary cards)
+async function loadModuleMetrics(module) {
+    const statsSummary = document.getElementById('statsSummary');
+    
+    try {
+        const response = await fetch(`${API_BASE}/metrics/global`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const metrics = await response.json();
+        
+        let html = '';
+        
+        if (module === 'tracks') {
+            // Métricas para módulo de Canciones - TODAS las métricas
+            html = `
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.total_tracks || 0}</div>
+                    <div class="metric-summary-label">Total Canciones</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.unique_artists || 0}</div>
+                    <div class="metric-summary-label">Artistas</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.unique_albums || 0}</div>
+                    <div class="metric-summary-label">Álbumes</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.total_duration_formatted || '0m'}</div>
+                    <div class="metric-summary-label">Duración Total</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.bpm_average ? Math.round(metrics.bpm_average) : 'N/A'}</div>
+                    <div class="metric-summary-label">BPM Promedio</div>
+                </div>
+            `;
+        } else if (module === 'artists') {
+            // Métricas para módulo de Artistas - TODAS las métricas
+            html = `
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.unique_artists || 0}</div>
+                    <div class="metric-summary-label">Total Artistas</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.total_tracks || 0}</div>
+                    <div class="metric-summary-label">Total Canciones</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.unique_albums || 0}</div>
+                    <div class="metric-summary-label">Álbumes</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.total_duration_formatted || '0m'}</div>
+                    <div class="metric-summary-label">Duración Total</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.bpm_average ? Math.round(metrics.bpm_average) : 'N/A'}</div>
+                    <div class="metric-summary-label">BPM Promedio</div>
+                </div>
+            `;
+        } else if (module === 'metrics') {
+            // Métricas para módulo de Estadísticas (todas)
+            html = `
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.total_tracks || 0}</div>
+                    <div class="metric-summary-label">Total Canciones</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.unique_artists || 0}</div>
+                    <div class="metric-summary-label">Artistas</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.unique_albums || 0}</div>
+                    <div class="metric-summary-label">Álbumes</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.total_duration_formatted || '0m'}</div>
+                    <div class="metric-summary-label">Duración Total</div>
+                </div>
+                <div class="metric-summary-card">
+                    <div class="metric-summary-value">${metrics.bpm_average ? Math.round(metrics.bpm_average) : 'N/A'}</div>
+                    <div class="metric-summary-label">BPM Promedio</div>
+                </div>
+            `;
+        }
+        
+        statsSummary.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading module metrics:', error);
+        statsSummary.innerHTML = '<div class="metric-summary-card"><div class="metric-summary-value">-</div><div class="metric-summary-label">Error</div></div>';
+    }
 }
 
 // Load metrics
@@ -459,110 +813,207 @@ async function loadMetrics() {
     
     try {
         const response = await fetch(`${API_BASE}/metrics/global`);
-        allMetrics = await response.json();
         
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error response:', response.status, errorText);
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        allMetrics = await response.json();
+        console.log('Métricas recibidas del servidor:', allMetrics);
+        
+        // Asegurar que todas las propiedades existan
+        allMetrics = {
+            total_tracks: allMetrics.total_tracks || 0,
+            unique_artists: allMetrics.unique_artists || 0,
+            unique_albums: allMetrics.unique_albums || 0,
+            total_duration_formatted: allMetrics.total_duration_formatted || '0m',
+            bpm_average: allMetrics.bpm_average || null,
+            top_artists: allMetrics.top_artists || [],
+            top_albums: allMetrics.top_albums || [],
+            genre_distribution: allMetrics.genre_distribution || {},
+            avg_bpm_by_artist: allMetrics.avg_bpm_by_artist || {},
+            tracks_by_artist: allMetrics.tracks_by_artist || {}
+        };
+        
+        console.log('Métricas procesadas:', allMetrics);
+        
+        // Siempre renderizar métricas
         renderMetrics();
     } catch (error) {
         console.error('Error loading metrics:', error);
-        metricsContainer.innerHTML = '<div class="loading">Error cargando métricas</div>';
+        metricsContainer.innerHTML = `<div class="empty-state"><div class="empty-state-title">Error cargando métricas</div><p>${error.message}</p><p>Verifica la consola para más detalles</p></div>`;
     }
 }
 
 function renderMetrics() {
-    if (!allMetrics) return;
+    if (!allMetrics) {
+        document.getElementById('metricsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-title">No hay métricas disponibles</div><p>Ejecuta la sincronización para generar métricas</p></div>';
+        return;
+    }
     
     const filter = document.getElementById('metricsFilter')?.value || 'all';
-    const limit = document.getElementById('metricsLimit')?.value || '10';
-    const limitNum = limit === 'all' ? Infinity : parseInt(limit);
+    const limitNum = Infinity; // Mostrar todos sin límite
     
     const metricsContainer = document.getElementById('metricsContainer');
     let html = '';
     
-    // Summary cards
-    if (filter === 'all' || filter === 'artists') {
-        html += `
-            <div class="metrics-summary-grid">
-                <div class="metric-summary-card">
-                    <div class="metric-summary-value">${allMetrics.total_tracks || 0}</div>
-                    <div class="metric-summary-label">Total Canciones</div>
-                </div>
-                <div class="metric-summary-card">
-                    <div class="metric-summary-value">${allMetrics.unique_artists || 0}</div>
-                    <div class="metric-summary-label">Artistas</div>
-                </div>
-                <div class="metric-summary-card">
-                    <div class="metric-summary-value">${allMetrics.unique_albums || 0}</div>
-                    <div class="metric-summary-label">Álbumes</div>
-                </div>
-                <div class="metric-summary-card">
-                    <div class="metric-summary-value">${allMetrics.total_duration_formatted || '0m'}</div>
-                    <div class="metric-summary-label">Duración Total</div>
-                </div>
-                <div class="metric-summary-card">
-                    <div class="metric-summary-value">${allMetrics.bpm_average ? Math.round(allMetrics.bpm_average) : 'N/A'}</div>
-                    <div class="metric-summary-label">BPM Promedio</div>
-                </div>
-            </div>
-        `;
-    }
+    // NO mostrar summary cards aquí - ya están en statsSummary arriba
     
-    // Top Artists
-    if (filter === 'all' || filter === 'artists') {
+    // Top Artists y Top Albums - mostrar inline cuando filter es 'all'
+    if (filter === 'all') {
         const topArtists = (allMetrics.top_artists || []).slice(0, limitNum);
-        const maxTracks = topArtists.length > 0 ? topArtists[0].trackCount : 1;
-        
-        html += `
-            <div class="metric-section">
-                <div class="metric-title">Top Artistas</div>
-                <div class="top-artists-list">
-                    ${topArtists.map((artist, index) => {
-                        const percentage = (artist.trackCount / maxTracks) * 100;
-                        return `
-                            <div class="top-artist-item" onclick="showArtistDetail('${escapeHtml(artist.name).replace(/'/g, "\\'")}')">
-                                <div class="top-artist-rank">${index + 1}</div>
-                                <div class="top-artist-info">
-                                    <div class="top-artist-name">${escapeHtml(artist.name)}</div>
-                                    <div class="top-artist-meta">
-                                        <span>${artist.trackCount} canciones</span>
-                                        <span>•</span>
-                                        <span>${artist.durationFormatted}</span>
-                                        ${artist.avgBpm ? `<span>•</span><span>${Math.round(artist.avgBpm)} BPM</span>` : ''}
-                                    </div>
-                                </div>
-                                <div class="top-artist-bar">
-                                    <div class="top-artist-bar-fill" style="width: ${percentage}%"></div>
-                                </div>
-                                <div class="top-artist-stats">
-                                    <div class="top-artist-tracks">${artist.trackCount}</div>
-                                    <div class="top-artist-duration">${artist.durationFormatted}</div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
-    // Top Albums
-    if (filter === 'all' || filter === 'albums') {
         const topAlbums = (allMetrics.top_albums || []).slice(0, limitNum);
         
-        html += `
-            <div class="metric-section">
-                <div class="metric-title">Top Álbumes</div>
-                <div class="top-albums-list">
-                    ${topAlbums.map(album => `
-                        <div class="top-album-item">
-                            ${album.cover ? `<img src="${album.cover}" alt="${escapeHtml(album.name)}" class="top-album-cover">` : '<div class="top-album-cover"></div>'}
-                            <div class="top-album-name">${escapeHtml(album.name)}</div>
-                            <div class="top-album-artist">${escapeHtml(album.artist)}</div>
-                            <div class="top-album-tracks">${album.trackCount} canciones</div>
-                        </div>
-                    `).join('')}
+        html += `<div class="metrics-inline-container">`;
+        
+        // Top Artists
+        if (topArtists.length > 0) {
+            const maxTracks = topArtists[0].trackCount || 1;
+            html += `
+                <div class="metric-section metric-section-inline">
+                    <div class="metric-title">Top Artistas</div>
+                    <div class="top-artists-list">
+                        ${topArtists.map((artist, index) => {
+                            const percentage = (artist.trackCount / maxTracks) * 100;
+                            return `
+                                <div class="top-artist-item" onclick="showArtistDetail('${escapeHtml(artist.name).replace(/'/g, "\\'")}')">
+                                    <div class="top-artist-rank">${index + 1}</div>
+                                    <div class="top-artist-info">
+                                        <div class="top-artist-name">${escapeHtml(artist.name)}</div>
+                                        <div class="top-artist-meta">
+                                            <span>${artist.durationFormatted}</span>
+                                            <span>•</span>
+                                            <span>${artist.trackCount} canciones</span>
+                                        </div>
+                                    </div>
+                                    <div class="top-artist-bar">
+                                        <div class="top-artist-bar-fill" style="width: ${percentage}%"></div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            html += `
+                <div class="metric-section metric-section-inline">
+                    <div class="metric-title">Top Artistas</div>
+                    <div class="empty-state">
+                        <p>No hay artistas disponibles. Ejecuta la sincronización para cargar datos.</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Top Albums
+        if (topAlbums.length > 0) {
+            html += `
+                <div class="metric-section metric-section-inline">
+                    <div class="metric-title">Top Álbumes</div>
+                    <div class="top-albums-list">
+                        ${topAlbums.map(album => `
+                            <div class="top-album-item" onclick="showAlbumTracks('${escapeHtml(album.name).replace(/'/g, "\\'")}', '${escapeHtml(album.artist).replace(/'/g, "\\'")}')">
+                                ${album.cover ? `<img src="${album.cover}" alt="${escapeHtml(album.name)}" class="top-album-cover">` : '<div class="top-album-cover"></div>'}
+                                <div class="top-album-info">
+                                    <div class="top-album-name">${escapeHtml(album.name)}</div>
+                                    <div class="top-album-tracks">${album.trackCount} canciones</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="metric-section metric-section-inline">
+                    <div class="metric-title">Top Álbumes</div>
+                    <div class="empty-state">
+                        <p>No hay álbumes disponibles. Ejecuta la sincronización para cargar datos.</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += `</div>`;
+    } else {
+        // Top Artists solo
+        if (filter === 'artists') {
+            const topArtists = (allMetrics.top_artists || []).slice(0, limitNum);
+            
+            if (topArtists.length > 0) {
+                const maxTracks = topArtists[0].trackCount || 1;
+                html += `
+                    <div class="metric-section">
+                        <div class="metric-title">Top Artistas</div>
+                        <div class="top-artists-list">
+                            ${topArtists.map((artist, index) => {
+                                const percentage = (artist.trackCount / maxTracks) * 100;
+                                    return `
+                                        <div class="top-artist-item" onclick="showArtistDetail('${escapeHtml(artist.name).replace(/'/g, "\\'")}')">
+                                            <div class="top-artist-rank">${index + 1}</div>
+                                            <div class="top-artist-info">
+                                                <div class="top-artist-name">${escapeHtml(artist.name)}</div>
+                                                <div class="top-artist-meta">
+                                                    <span>${artist.durationFormatted}</span>
+                                                    <span>•</span>
+                                                    <span>${artist.trackCount} canciones</span>
+                                                </div>
+                                            </div>
+                                            <div class="top-artist-bar">
+                                                <div class="top-artist-bar-fill" style="width: ${percentage}%"></div>
+                                            </div>
+                                        </div>
+                                    `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="metric-section">
+                        <div class="metric-title">Top Artistas</div>
+                        <div class="empty-state">
+                            <p>No hay artistas disponibles. Ejecuta la sincronización para cargar datos.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Top Albums solo
+        if (filter === 'albums') {
+            const topAlbums = (allMetrics.top_albums || []).slice(0, limitNum);
+            
+            if (topAlbums.length > 0) {
+                html += `
+                    <div class="metric-section">
+                        <div class="metric-title">Top Álbumes</div>
+                        <div class="top-albums-list">
+                            ${topAlbums.map(album => `
+                                <div class="top-album-item">
+                                    ${album.cover ? `<img src="${album.cover}" alt="${escapeHtml(album.name)}" class="top-album-cover">` : '<div class="top-album-cover"></div>'}
+                                    <div class="top-album-name">${escapeHtml(album.name)}</div>
+                                    <div class="top-album-artist">${escapeHtml(album.artist)}</div>
+                                    <div class="top-album-tracks">${album.trackCount} canciones</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="metric-section">
+                        <div class="metric-title">Top Álbumes</div>
+                        <div class="empty-state">
+                            <p>No hay álbumes disponibles. Ejecuta la sincronización para cargar datos.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
     }
     
     // Genres
@@ -571,16 +1022,29 @@ function renderMetrics() {
             .sort(([,a], [,b]) => b - a)
             .slice(0, limitNum);
         
-        html += `
-            <div class="metric-section">
-                <div class="metric-title">Géneros</div>
-                <div class="genre-list">
-                    ${genres.map(([genre, count]) => `
-                        <div class="genre-tag">${escapeHtml(genre)} (${count})</div>
-                    `).join('')}
+        if (genres.length > 0) {
+            html += `
+                <div class="metric-section">
+                    <div class="metric-title">Géneros</div>
+                    <div class="genre-list">
+                        ${genres.map(([genre, count]) => `
+                            <div class="genre-tag" onclick="showGenreTracks('${escapeHtml(genre).replace(/'/g, "\\'")}')" style="cursor: pointer;">
+                                ${escapeHtml(genre)} (${count})
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            html += `
+                <div class="metric-section">
+                    <div class="metric-title">Géneros</div>
+                    <div class="empty-state">
+                        <p>No hay géneros disponibles. Ejecuta la sincronización para cargar datos.</p>
+                    </div>
+                </div>
+            `;
+        }
     }
     
     // BPM by Artist
@@ -607,26 +1071,264 @@ function renderMetrics() {
         }
     }
     
-    metricsContainer.innerHTML = html || '<div class="empty-state">No hay métricas disponibles</div>';
+    // Verificar si hay contenido después de las summary cards
+    const hasContent = html.includes('metric-section');
+    
+    if (!hasContent && allMetrics.total_tracks === 0) {
+        html += '<div class="empty-state"><div class="empty-state-title">No hay datos disponibles</div><p>Ejecuta la sincronización para cargar canciones y generar métricas</p></div>';
+    }
+    
+    metricsContainer.innerHTML = html;
+    
+    // Log para debug
+    console.log('Métricas renderizadas. Total tracks:', allMetrics.total_tracks);
+    console.log('Top artists:', allMetrics.top_artists?.length || 0);
+    console.log('Top albums:', allMetrics.top_albums?.length || 0);
 }
 
 // Filter change handlers
 document.getElementById('metricsFilter')?.addEventListener('change', renderMetrics);
-document.getElementById('metricsLimit')?.addEventListener('change', renderMetrics);
 
-// Load global stats
-async function loadStats() {
+// Export functions
+async function exportToPDF() {
     try {
-        const metricsResponse = await fetch(`${API_BASE}/metrics/global`);
-        const metrics = await metricsResponse.json();
+        // Obtener todos los tracks
+        const response = await fetch(`${API_BASE}/tracks`);
+        if (!response.ok) {
+            throw new Error('Error obteniendo tracks');
+        }
+        const tracks = await response.json();
         
-        document.getElementById('totalTracks').textContent = metrics.total_tracks || 0;
-        document.getElementById('totalArtists').textContent = Object.keys(metrics.tracks_by_artist || {}).length || 0;
-        document.getElementById('avgBpm').textContent = metrics.bpm_average ? Math.round(metrics.bpm_average) + ' BPM' : 'N/A';
+        // Verificar si jsPDF está disponible
+        if (!window.jspdf) {
+            showNotification('Cargando biblioteca PDF...', 'info');
+            await new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                script.onload = resolve;
+                document.head.appendChild(script);
+            });
+        }
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        
+        // Configuración
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        const headerHeight = 35;
+        let yPos = margin;
+        let currentPage = 1;
+        
+        // Función para dibujar encabezado de página
+        const drawHeader = () => {
+            // Banner verde superior
+            doc.setFillColor(29, 185, 84);
+            doc.rect(0, 0, pageWidth, headerHeight, 'F');
+            
+            // Título
+            doc.setFontSize(20);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont(undefined, 'bold');
+            doc.text('Reporte de Canciones', pageWidth / 2, 18, { align: 'center' });
+            
+            // Número de página
+            doc.setFontSize(9);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Página ${currentPage}`, pageWidth - margin, 18, { align: 'right' });
+        };
+        
+        // Dibujar encabezado en primera página
+        drawHeader();
+        yPos = headerHeight + 15;
+        
+        // Información general en caja destacada
+        const infoBoxHeight = 28;
+        doc.setFillColor(248, 248, 248);
+        doc.setDrawColor(29, 185, 84);
+        doc.setLineWidth(0.5);
+        doc.rect(margin, yPos, pageWidth - 2 * margin, infoBoxHeight, 'FD');
+        
+        doc.setFontSize(13);
+        doc.setTextColor(29, 185, 84);
+        doc.setFont(undefined, 'bold');
+        doc.text('Resumen', margin + 8, yPos + 10);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(60, 60, 60);
+        doc.setFont(undefined, 'normal');
+        doc.text(`Total de canciones: ${tracks.length}`, margin + 8, yPos + 18);
+        doc.text(`Fecha de exportación: ${new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin + 8, yPos + 24);
+        
+        yPos += infoBoxHeight + 12;
+        
+        // Tabla de canciones con mejor diseño
+        const headers = ['#', 'Canción', 'Artista', 'Álbum', 'Duración', 'BPM'];
+        const colWidths = [12, 75, 50, 50, 22, 18];
+        const startX = margin;
+        const rowHeight = 9;
+        
+        // Función para dibujar encabezados de tabla
+        const drawTableHeader = () => {
+            doc.setFillColor(29, 185, 84);
+            doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'bold');
+            let xPos = startX;
+            headers.forEach((header, i) => {
+                doc.text(header, xPos + colWidths[i] / 2, yPos + 6, { align: 'center' });
+                xPos += colWidths[i];
+            });
+            yPos += rowHeight;
+        };
+        
+        // Dibujar encabezados iniciales
+        drawTableHeader();
+        
+        // Filas de datos
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'normal');
+        tracks.forEach((track, index) => {
+            // Verificar si necesita nueva página
+            if (yPos + rowHeight > pageHeight - margin - 5) {
+                doc.addPage();
+                currentPage++;
+                drawHeader();
+                yPos = headerHeight + 15;
+                drawTableHeader();
+            }
+            
+            // Fondo alternado para filas y bordes
+            if (index % 2 === 0) {
+                doc.setFillColor(252, 252, 252);
+            } else {
+                doc.setFillColor(255, 255, 255);
+            }
+            doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+            
+            // Borde inferior de fila
+            doc.setDrawColor(230, 230, 230);
+            doc.setLineWidth(0.1);
+            doc.line(startX, yPos + rowHeight, pageWidth - margin, yPos + rowHeight);
+            
+            const durationMinutes = Math.floor(track.duration_ms / 60000);
+            const durationSeconds = Math.floor((track.duration_ms % 60000) / 1000);
+            const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
+            
+            // Datos de la fila
+            doc.setTextColor(40, 40, 40);
+            let xPos = startX;
+            
+            // Número
+            doc.text((index + 1).toString(), xPos + 4, yPos + 6, { align: 'left' });
+            xPos += colWidths[0];
+            
+            // Línea divisoria
+            doc.setDrawColor(230, 230, 230);
+            doc.line(xPos, yPos, xPos, yPos + rowHeight);
+            
+            // Canción
+            doc.text((track.name || '').substring(0, 45), xPos + 3, yPos + 6, { align: 'left', maxWidth: colWidths[1] - 6 });
+            xPos += colWidths[1];
+            doc.line(xPos, yPos, xPos, yPos + rowHeight);
+            
+            // Artista
+            doc.text(((track.artists?.join(', ') || track.artist_main || '').substring(0, 30)), xPos + 3, yPos + 6, { align: 'left', maxWidth: colWidths[2] - 6 });
+            xPos += colWidths[2];
+            doc.line(xPos, yPos, xPos, yPos + rowHeight);
+            
+            // Álbum
+            doc.text((track.album || '').substring(0, 30), xPos + 3, yPos + 6, { align: 'left', maxWidth: colWidths[3] - 6 });
+            xPos += colWidths[3];
+            doc.line(xPos, yPos, xPos, yPos + rowHeight);
+            
+            // Duración
+            doc.text(formattedDuration, xPos + colWidths[4] / 2, yPos + 6, { align: 'center' });
+            xPos += colWidths[4];
+            doc.line(xPos, yPos, xPos, yPos + rowHeight);
+            
+            // BPM
+            doc.text(track.bpm ? Math.round(track.bpm).toString() : 'N/A', xPos + colWidths[5] / 2, yPos + 6, { align: 'center' });
+            
+            yPos += rowHeight;
+        });
+        
+        // Guardar PDF
+        doc.save(`canciones_${new Date().toISOString().split('T')[0]}.pdf`);
+        showNotification('PDF exportado exitosamente', 'success');
     } catch (error) {
-        console.error('Error loading stats:', error);
+        console.error('Error exportando a PDF:', error);
+        showNotification('Error al exportar PDF', 'error');
     }
 }
+
+async function exportToCSV() {
+    try {
+        const response = await fetch(`${API_BASE}/tracks`);
+        if (!response.ok) {
+            throw new Error('Error obteniendo tracks');
+        }
+        const tracks = await response.json();
+        
+        // Crear CSV
+        const headers = ['#', 'Canción', 'Artistas', 'Artista Principal', 'Álbum', 'Fecha Lanzamiento', 'Duración (ms)', 'Duración', 'BPM', 'Géneros', 'Preview URL', 'Cover URL'];
+        const rows = tracks.map((track, index) => {
+            const durationMinutes = Math.floor(track.duration_ms / 60000);
+            const durationSeconds = Math.floor((track.duration_ms % 60000) / 1000);
+            const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
+            
+            return [
+                index + 1,
+                track.name || '',
+                (track.artists || []).join('; '),
+                track.artist_main || '',
+                track.album || '',
+                track.release_date || '',
+                track.duration_ms || 0,
+                formattedDuration,
+                track.bpm ? Math.round(track.bpm) : '',
+                (track.genres || []).join('; '),
+                track.preview_url || '',
+                track.cover_url || ''
+            ];
+        });
+        
+        // Convertir a CSV
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => {
+                const cellStr = String(cell || '');
+                // Escapar comillas y envolver en comillas si contiene comas o comillas
+                if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                    return `"${cellStr.replace(/"/g, '""')}"`;
+                }
+                return cellStr;
+            }).join(','))
+        ].join('\n');
+        
+        // Crear blob y descargar
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `canciones_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showNotification('CSV exportado exitosamente', 'success');
+    } catch (error) {
+        console.error('Error exportando a CSV:', error);
+        showNotification('Error al exportar CSV', 'error');
+    }
+}
+
+// Load global stats
+// loadStats() removida - ahora se usa loadModuleMetrics()
 
 // Search functionality
 document.getElementById('searchInput')?.addEventListener('input', (e) => {
@@ -640,56 +1342,80 @@ document.getElementById('searchInput')?.addEventListener('input', (e) => {
 });
 
 // Sync button
-document.getElementById('syncBtn')?.addEventListener('click', async () => {
-    const btn = document.getElementById('syncBtn');
-    btn.disabled = true;
-    btn.textContent = 'Sincronizando...';
+document.addEventListener('DOMContentLoaded', () => {
+    const syncBtn = document.getElementById('syncBtn');
+    if (!syncBtn) {
+        console.error('❌ Botón syncBtn no encontrado en el DOM');
+        return;
+    }
     
-    try {
-        const tokenStatus = await fetch(`${API_BASE}/api/token/status`);
-        const status = await tokenStatus.json();
+    console.log('✅ Botón syncBtn encontrado, agregando event listener...');
+    
+    syncBtn.addEventListener('click', async () => {
+        console.log('🖱️ Botón Sincronizar clickeado');
+        const btn = document.getElementById('syncBtn');
+        btn.disabled = true;
+        btn.textContent = 'Sincronizando...';
         
-        if (!status.hasToken) {
-            const proceed = confirm('No hay token de usuario configurado. Sin él, no se podrá obtener BPM. ¿Deseas continuar de todas formas?');
-            if (!proceed) {
+        try {
+            console.log(`🔍 Verificando token en: ${API_BASE}/api/token/status`);
+            const tokenStatus = await fetch(`${API_BASE}/api/token/status`);
+            const status = await tokenStatus.json();
+            console.log('📊 Estado del token:', status);
+            
+            if (!status.hasToken) {
+                const proceed = confirm('No hay token de usuario configurado. Sin él, no se podrá obtener BPM. ¿Deseas continuar de todas formas?');
+                if (!proceed) {
+                    btn.disabled = false;
+                    btn.textContent = 'Sincronizar';
+                    return;
+                }
+            }
+            
+            console.log(`🚀 Llamando a: ${API_BASE}/api/sync`);
+            const response = await fetch(`${API_BASE}/api/sync`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log(`📡 Respuesta recibida: ${response.status} ${response.statusText}`);
+            
+            if (response.ok || response.status === 202) {
+                const responseData = await response.json().catch(() => ({}));
+                console.log('✅ Sincronización iniciada:', responseData);
+                showNotification('Sincronización iniciada. Esto puede tardar unos minutos...', 'success');
+                
+                setTimeout(() => {
+                    const activeNav = document.querySelector('.nav-item.active');
+                    const tabName = activeNav?.dataset.tab || 'tracks';
+                    loadModuleMetrics(tabName);
+                    if (activeNav?.dataset.tab === 'tracks') {
+                        loadTracks();
+                    } else if (activeNav?.dataset.tab === 'artists') {
+                        loadArtists();
+                    } else if (activeNav?.dataset.tab === 'metrics') {
+                        loadMetrics();
+                    }
+                }, 10000);
+            } else {
+                const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+                console.error('❌ Error en respuesta:', errorData);
+                showNotification(`Error: ${errorData.error || 'Error al iniciar sincronización'}`, 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error al sincronizar:', error);
+            showNotification('Error al iniciar sincronización', 'error');
+        } finally {
+            setTimeout(() => {
                 btn.disabled = false;
                 btn.textContent = 'Sincronizar';
-                return;
-            }
+            }, 5000);
         }
-        
-        const response = await fetch(`${API_BASE}/api/sync`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.ok || response.status === 202) {
-            showNotification('Sincronización iniciada. Esto puede tardar unos minutos...', 'success');
-            
-            setTimeout(() => {
-                loadStats();
-                const activeNav = document.querySelector('.nav-item.active');
-                if (activeNav?.dataset.tab === 'tracks') {
-                    loadTracks();
-                } else if (activeNav?.dataset.tab === 'artists') {
-                    loadArtists();
-                }
-            }, 10000);
-        } else {
-            const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-            showNotification(`Error: ${errorData.error || 'Error al iniciar sincronización'}`, 'error');
-        }
-    } catch (error) {
-        console.error('Error al sincronizar:', error);
-        showNotification('Error al iniciar sincronización', 'error');
-    } finally {
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.textContent = 'Sincronizar';
-        }, 5000);
-    }
+    });
+    
+    console.log('✅ Event listener agregado al botón syncBtn');
 });
 
 // Connect Spotify button
@@ -699,10 +1425,10 @@ document.getElementById('connectSpotifyBtn')?.addEventListener('click', () => {
 
 // Refresh button
 document.getElementById('refreshBtn')?.addEventListener('click', () => {
-    loadStats();
     const activeNav = document.querySelector('.nav-item.active');
     if (activeNav) {
-        const tabName = activeNav.dataset.tab;
+        const tabName = activeNav.dataset.tab || 'tracks';
+        loadModuleMetrics(tabName);
         if (tabName === 'tracks') {
             loadTracks();
         } else if (tabName === 'artists') {
@@ -716,5 +1442,5 @@ document.getElementById('refreshBtn')?.addEventListener('click', () => {
 // Initialize
 handleAuthCallback();
 updateConnectButton();
-loadStats();
 loadTracks();
+loadModuleMetrics('tracks');

@@ -120,8 +120,8 @@ export class SyncService {
       console.log(`\n💾 Guardando ${allTracks.length} tracks en Supabase...`);
       console.log(`   Ejemplo de track: ${JSON.stringify(allTracks[0], null, 2)}`);
       try {
-        await this.supabase.upsertTracks(allTracks);
-        console.log(`✅ ${allTracks.length} tracks guardados exitosamente en Supabase`);
+        const savedCount = await this.supabase.upsertTracks(allTracks);
+        console.log(`✅ ${savedCount} tracks guardados exitosamente en Supabase (de ${allTracks.length} procesados)`);
       } catch (error: any) {
         console.error('❌ Error guardando tracks en Supabase:');
         console.error('   Error message:', error.message);
