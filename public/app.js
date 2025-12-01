@@ -188,6 +188,33 @@ document.getElementById('searchInput')?.addEventListener('input', (e) => {
     });
 });
 
+// Sync button - ejecuta sincronización
+document.getElementById('syncBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('syncBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Sincronizando...';
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/cron`);
+        if (response.ok) {
+            alert('✅ Sincronización iniciada. Revisa los logs en Vercel para ver el progreso.');
+            // Esperar un poco y luego refrescar
+            setTimeout(() => {
+                loadStats();
+                loadTracks();
+            }, 3000);
+        } else {
+            alert('❌ Error al iniciar sincronización');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('❌ Error al iniciar sincronización');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔄 Sincronizar';
+    }
+});
+
 // Refresh button
 document.getElementById('refreshBtn')?.addEventListener('click', () => {
     loadStats();
