@@ -50,26 +50,54 @@ export class SpotifyService {
         const startTime = Date.now();
         console.log(`[${new Date().toISOString()}] Intentando obtener token de Spotify (intento ${attempt}/${maxRetries})...`);
         
-        const response = await axios.post(
-          'https://accounts.spotify.com/api/token',
-          new URLSearchParams({
-            grant_type: 'client_credentials',
-          }),
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              Authorization: `Basic ${Buffer.from(
-                `${clientId}:${clientSecret}`
-              ).toString('base64')}`,
-            },
-            timeout: 8000, // 8 segundos - más corto para fallar rápido
-            validateStatus: (status) => status < 500, // No lanzar error para 4xx
-            // Agregar configuración adicional para Vercel
-            maxRedirects: 0,
-            httpAgent: false,
-            httpsAgent: false,
+        // Crear un timeout manual más agresivo
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
+        try {
+          const response = await axios.post(
+            'https://accounts.spotify.com/api/token',
+            new URLSearchParams({
+              grant_type: 'client_credentials',
+            }),
+            {
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                Authorization: `Basic ${Buffer.from(
+                  `${clientId}:${clientSecret}`
+                ).toString('base64')}`,
+              },
+              timeout: 8000,
+              validateStatus: (status) => status < 500,
+              signal: controller.signal,
+            }
+          );
+          
+          clearTimeout(timeoutId);
+          
+          const elapsed = Date.now() - startTime;
+          console.log(`[${new Date().toISOString()}] Respuesta recibida en ${elapsed}ms (status: ${response.status})`);
+
+          if (response.status !== 200) {
+            throw new Error(`Spotify API returned status ${response.status}: ${JSON.stringify(response.data)}`);
           }
-        );
+
+          this.accessToken = response.data.access_token;
+          this.tokenExpiresAt = Date.now() + (response.data.expires_in - 300) * 1000;
+
+          if (!this.accessToken) {
+            throw new Error('No se recibió token de acceso de Spotify');
+          }
+
+          console.log(`✅ Token de Spotify obtenido exitosamente (intento ${attempt})`);
+          return this.accessToken;
+        } catch (err: any) {
+          clearTimeout(timeoutId);
+          if (err.name === 'AbortError' || err.code === 'ECONNABORTED') {
+            throw new Error('Request timeout after 8s');
+          }
+          throw err;
+        }
 
         const elapsed = Date.now() - startTime;
         console.log(`[${new Date().toISOString()}] Respuesta recibida en ${elapsed}ms (status: ${response.status})`);
