@@ -271,6 +271,7 @@ export class SupabaseService {
 
   /**
    * Obtiene tracks de un artista específico
+   * Filtra por artist_main y también verifica que el artista esté en la lista de artists
    */
   async getTracksByArtist(artistName: string): Promise<any[]> {
     try {
@@ -284,7 +285,26 @@ export class SupabaseService {
         throw error;
       }
 
-      return data || [];
+      // Filtrar adicionalmente para asegurar que el artista esté en la lista de artists
+      // Esto previene que se muestren canciones donde el artista solo es colaborador
+      const filteredTracks = (data || []).filter((track: any) => {
+        // Verificar que artist_main coincida exactamente
+        if (track.artist_main !== artistName) {
+          return false;
+        }
+        
+        // Verificar que el artista esté en la lista de artists del track
+        if (track.artists && Array.isArray(track.artists)) {
+          const trackArtists = track.artists.map((a: string) => a.toLowerCase().trim());
+          const searchName = artistName.toLowerCase().trim();
+          return trackArtists.includes(searchName);
+        }
+        
+        // Si no hay lista de artists, confiar en artist_main
+        return true;
+      });
+
+      return filteredTracks;
     } catch (error) {
       console.error(`Error obteniendo tracks del artista ${artistName}:`, error);
       throw error;

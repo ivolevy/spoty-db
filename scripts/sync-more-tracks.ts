@@ -129,7 +129,18 @@ async function syncMoreTracks(options: SyncOptions = {}) {
 
       // Procesar tracks
       console.log(`🔄 Procesando ${tracksFound.length} tracks...`);
+      let skippedTracks = 0;
       for (const track of tracksFound) {
+        // Verificar que el artista buscado esté en la lista de artistas del track
+        const trackArtists = track.artists.map((a: any) => a.name.toLowerCase().trim());
+        const searchArtistName = artistName.toLowerCase().trim();
+        
+        if (!trackArtists.includes(searchArtistName)) {
+          console.log(`     ⚠️  Omitiendo "${track.name}": el artista "${artistName}" no está en la lista de artistas (${track.artists.map((a: any) => a.name).join(', ')})`);
+          skippedTracks++;
+          continue;
+        }
+        
         const bpm = audioFeaturesMap.get(track.id) || null;
         const previewUrl = track.preview_url || null;
 
@@ -151,6 +162,10 @@ async function syncMoreTracks(options: SyncOptions = {}) {
         };
 
         allTracks.push(trackData);
+      }
+      
+      if (skippedTracks > 0) {
+        console.log(`   ⚠️  ${skippedTracks} tracks omitidos porque "${artistName}" no es artista principal`);
       }
 
       console.log(`✅ ${tracksFound.length} tracks procesados para ${artistName}`);
