@@ -84,17 +84,29 @@
                     </div>
                     <div class="metrics-filters">
                         <div class="export-buttons">
-                            <button class="export-btn" onclick="exportToPDF()">
+                            <button class="export-btn" onclick="exportMetricsToPDF()" title="Exportar métrica actual">
                                 <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                     <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
                                 </svg>
                                 Exportar PDF
                             </button>
-                            <button class="export-btn" onclick="exportToCSV()">
+                            <button class="export-btn" onclick="exportMetricsToCSV()" title="Exportar métrica actual">
                                 <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                     <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
                                 </svg>
                                 Exportar CSV
+                            </button>
+                            <button class="export-btn" onclick="exportAllMetricsToPDF()" title="Exportar todas las métricas">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                </svg>
+                                Exportar Todo PDF
+                            </button>
+                            <button class="export-btn" onclick="exportAllMetricsToCSV()" title="Exportar todas las métricas">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                </svg>
+                                Exportar Todo CSV
                             </button>
                         </div>
                     </div>

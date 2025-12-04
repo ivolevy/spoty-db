@@ -271,6 +271,7 @@ export class SupabaseService {
 
   /**
    * Obtiene tracks de un artista específico
+   * Incluye tracks donde el artista es principal Y donde colabora
    * Hace comparación case-insensitive y normaliza espacios para evitar problemas
    */
   async getTracksByArtist(artistName: string): Promise<any[]> {
@@ -293,23 +294,33 @@ export class SupabaseService {
         throw error;
       }
 
-      // Filtrar tracks donde el artist_main coincida (case-insensitive)
-      // También verificar que el artista principal del track (primer artista en el array) coincida
+      // Filtrar tracks donde el artista aparece:
+      // 1. Como artista principal (artist_main coincide)
+      // 2. Como colaborador (aparece en el array artists)
       const filteredTracks = (data || []).filter((track: any) => {
-        if (!track.artist_main) {
-          return false;
+        // Verificar si el artista es el artista principal
+        if (track.artist_main) {
+          const normalizedMain = normalizeName(track.artist_main);
+          if (normalizedMain === normalizedSearchName) {
+            // Verificación adicional: el artista principal del track debe ser el buscado
+            // Esto previene casos donde artist_main está mal asignado
+            if (track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
+              const firstArtist = normalizeName(track.artists[0]);
+              return firstArtist === normalizedSearchName;
+            }
+            return true; // Si no hay array de artists, confiar en artist_main
+          }
         }
         
-        // Comparar artist_main normalizado
-        const normalizedMain = normalizeName(track.artist_main);
-        if (normalizedMain === normalizedSearchName) {
-          // Verificación adicional: el artista principal del track debe ser el buscado
-          // Esto previene casos donde artist_main está mal asignado
-          if (track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
-            const firstArtist = normalizeName(track.artists[0]);
-            return firstArtist === normalizedSearchName;
+        // Verificar si el artista aparece como colaborador en el array artists
+        if (track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
+          const artistInList = track.artists.some((artist: string) => {
+            return normalizeName(artist) === normalizedSearchName;
+          });
+          
+          if (artistInList) {
+            return true; // El artista aparece como colaborador
           }
-          return true; // Si no hay array de artists, confiar en artist_main
         }
         
         return false;

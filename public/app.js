@@ -989,15 +989,49 @@ document.querySelectorAll('.metric-tab-btn').forEach(btn => {
     });
 });
 
-// Export functions
-async function exportToPDF() {
+// Export functions for metrics
+async function exportMetricsToPDF() {
+    if (!allMetrics) {
+        showNotification('No hay métricas disponibles para exportar', 'error');
+        return;
+    }
+    
+    const activeTab = document.querySelector('.metric-tab-btn.active')?.dataset.tab || 'artists';
+    await exportMetricsToPDFByType(activeTab);
+}
+
+async function exportMetricsToCSV() {
+    if (!allMetrics) {
+        showNotification('No hay métricas disponibles para exportar', 'error');
+        return;
+    }
+    
+    const activeTab = document.querySelector('.metric-tab-btn.active')?.dataset.tab || 'artists';
+    await exportMetricsToCSVByType(activeTab);
+}
+
+async function exportAllMetricsToPDF() {
+    if (!allMetrics) {
+        showNotification('No hay métricas disponibles para exportar', 'error');
+        return;
+    }
+    await exportMetricsToPDFByType('all');
+}
+
+async function exportAllMetricsToCSV() {
+    if (!allMetrics) {
+        showNotification('No hay métricas disponibles para exportar', 'error');
+        return;
+    }
+    await exportMetricsToCSVByType('all');
+}
+
+async function exportMetricsToPDFByType(type = 'artists') {
     try {
-        // Obtener todos los tracks
-        const response = await fetch(`${API_BASE}/tracks`);
-        if (!response.ok) {
-            throw new Error('Error obteniendo tracks');
+        if (!allMetrics) {
+            showNotification('No hay métricas disponibles', 'error');
+            return;
         }
-        const tracks = await response.json();
         
         // Verificar si jsPDF está disponible
         if (!window.jspdf) {
@@ -1022,146 +1056,325 @@ async function exportToPDF() {
         let currentPage = 1;
         
         // Función para dibujar encabezado de página
-        const drawHeader = () => {
-            // Banner verde superior
+        const drawHeader = (title) => {
             doc.setFillColor(29, 185, 84);
             doc.rect(0, 0, pageWidth, headerHeight, 'F');
-            
-            // Título
             doc.setFontSize(20);
             doc.setTextColor(255, 255, 255);
             doc.setFont(undefined, 'bold');
-            doc.text('Reporte de Canciones', pageWidth / 2, 18, { align: 'center' });
-            
-            // Número de página
+            doc.text(title, pageWidth / 2, 18, { align: 'center' });
             doc.setFontSize(9);
-            doc.setTextColor(255, 255, 255);
             doc.setFont(undefined, 'normal');
             doc.text(`Página ${currentPage}`, pageWidth - margin, 18, { align: 'right' });
         };
         
-        // Dibujar encabezado en primera página
-        drawHeader();
+        // Función para agregar nueva página
+        const addNewPage = (title) => {
+            doc.addPage();
+            currentPage++;
+            drawHeader(title);
+            yPos = headerHeight + 15;
+        };
+        
+        const titles = {
+            'artists': 'Top Artistas',
+            'albums': 'Top Álbumes',
+            'genres': 'Géneros',
+            'all': 'Todas las Métricas'
+        };
+        
+        const title = titles[type] || 'Métricas';
+        drawHeader(title);
         yPos = headerHeight + 15;
         
-        // Información general en caja destacada
-        const infoBoxHeight = 28;
+        // Información general
+        const infoBoxHeight = 20;
         doc.setFillColor(248, 248, 248);
         doc.setDrawColor(29, 185, 84);
         doc.setLineWidth(0.5);
         doc.rect(margin, yPos, pageWidth - 2 * margin, infoBoxHeight, 'FD');
-        
-        doc.setFontSize(13);
-        doc.setTextColor(29, 185, 84);
-        doc.setFont(undefined, 'bold');
-        doc.text('Resumen', margin + 8, yPos + 10);
-        
         doc.setFontSize(10);
         doc.setTextColor(60, 60, 60);
         doc.setFont(undefined, 'normal');
-        doc.text(`Total de canciones: ${tracks.length}`, margin + 8, yPos + 18);
-        doc.text(`Fecha de exportación: ${new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin + 8, yPos + 24);
+        doc.text(`Fecha de exportación: ${new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}`, margin + 8, yPos + 12);
+        yPos += infoBoxHeight + 15;
         
-        yPos += infoBoxHeight + 12;
-        
-        // Tabla de canciones con mejor diseño
-        const headers = ['#', 'Canción', 'Artista', 'Álbum', 'Duración', 'BPM'];
-        const colWidths = [12, 75, 50, 50, 22, 18];
-        const startX = margin;
-        const rowHeight = 9;
-        
-        // Función para dibujar encabezados de tabla
-        const drawTableHeader = () => {
-            doc.setFillColor(29, 185, 84);
-            doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(9);
+        // Exportar según el tipo
+        if (type === 'artists' || type === 'all') {
+            if (yPos > pageHeight - 40) addNewPage(title);
+            doc.setFontSize(16);
+            doc.setTextColor(29, 185, 84);
             doc.setFont(undefined, 'bold');
-            let xPos = startX;
-            headers.forEach((header, i) => {
-                doc.text(header, xPos + colWidths[i] / 2, yPos + 6, { align: 'center' });
-                xPos += colWidths[i];
-            });
-            yPos += rowHeight;
-        };
-        
-        // Dibujar encabezados iniciales
-        drawTableHeader();
-        
-        // Filas de datos
-        doc.setFontSize(8);
-        doc.setFont(undefined, 'normal');
-        tracks.forEach((track, index) => {
-            // Verificar si necesita nueva página
-            if (yPos + rowHeight > pageHeight - margin - 5) {
-                doc.addPage();
-                currentPage++;
-                drawHeader();
-                yPos = headerHeight + 15;
-                drawTableHeader();
-            }
+            doc.text('Top Artistas', margin, yPos);
+            yPos += 10;
             
-            // Fondo alternado para filas y bordes
-            if (index % 2 === 0) {
-                doc.setFillColor(252, 252, 252);
+            const topArtists = allMetrics.top_artists || [];
+            if (topArtists.length > 0) {
+                const headers = ['#', 'Artista', 'Canciones', 'Duración Total', 'BPM Promedio'];
+                const colWidths = [15, 80, 30, 35, 30];
+                const startX = margin;
+                const rowHeight = 8;
+                
+                // Encabezados
+                doc.setFillColor(29, 185, 84);
+                doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'bold');
+                let xPos = startX;
+                headers.forEach((header, i) => {
+                    doc.text(header, xPos + colWidths[i] / 2, yPos + 5, { align: 'center' });
+                    xPos += colWidths[i];
+                });
+                yPos += rowHeight;
+                
+                // Datos
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'normal');
+                topArtists.forEach((artist, index) => {
+                    if (yPos + rowHeight > pageHeight - margin - 5) {
+                        addNewPage(title);
+                        // Redibujar encabezados
+                        doc.setFillColor(29, 185, 84);
+                        doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+                        doc.setTextColor(255, 255, 255);
+                        doc.setFontSize(9);
+                        doc.setFont(undefined, 'bold');
+                        xPos = startX;
+                        headers.forEach((header, i) => {
+                            doc.text(header, xPos + colWidths[i] / 2, yPos + 5, { align: 'center' });
+                            xPos += colWidths[i];
+                        });
+                        yPos += rowHeight;
+                    }
+                    
+                    doc.setFillColor(index % 2 === 0 ? 252 : 255, 252, 252);
+                    doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+                    doc.setTextColor(40, 40, 40);
+                    
+                    xPos = startX;
+                    doc.text((index + 1).toString(), xPos + 4, yPos + 5);
+                    xPos += colWidths[0];
+                    doc.text(artist.name.substring(0, 35), xPos + 3, yPos + 5, { maxWidth: colWidths[1] - 6 });
+                    xPos += colWidths[1];
+                    doc.text(artist.trackCount.toString(), xPos + colWidths[2] / 2, yPos + 5, { align: 'center' });
+                    xPos += colWidths[2];
+                    doc.text(artist.durationFormatted || 'N/A', xPos + colWidths[3] / 2, yPos + 5, { align: 'center' });
+                    xPos += colWidths[3];
+                    doc.text(artist.avgBpm ? Math.round(artist.avgBpm).toString() : 'N/A', xPos + colWidths[4] / 2, yPos + 5, { align: 'center' });
+                    yPos += rowHeight;
+                });
             } else {
-                doc.setFillColor(255, 255, 255);
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('No hay datos de artistas disponibles', margin, yPos);
+                yPos += 10;
             }
-            doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
-            
-            // Borde inferior de fila
-            doc.setDrawColor(230, 230, 230);
-            doc.setLineWidth(0.1);
-            doc.line(startX, yPos + rowHeight, pageWidth - margin, yPos + rowHeight);
-            
-            const durationMinutes = Math.floor(track.duration_ms / 60000);
-            const durationSeconds = Math.floor((track.duration_ms % 60000) / 1000);
-            const formattedDuration = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
-            
-            // Datos de la fila
-            doc.setTextColor(40, 40, 40);
-            let xPos = startX;
-            
-            // Número
-            doc.text((index + 1).toString(), xPos + 4, yPos + 6, { align: 'left' });
-            xPos += colWidths[0];
-            
-            // Línea divisoria
-            doc.setDrawColor(230, 230, 230);
-            doc.line(xPos, yPos, xPos, yPos + rowHeight);
-            
-            // Canción
-            doc.text((track.name || '').substring(0, 45), xPos + 3, yPos + 6, { align: 'left', maxWidth: colWidths[1] - 6 });
-            xPos += colWidths[1];
-            doc.line(xPos, yPos, xPos, yPos + rowHeight);
-            
-            // Artista
-            doc.text(((track.artists?.join(', ') || track.artist_main || '').substring(0, 30)), xPos + 3, yPos + 6, { align: 'left', maxWidth: colWidths[2] - 6 });
-            xPos += colWidths[2];
-            doc.line(xPos, yPos, xPos, yPos + rowHeight);
-            
-            // Álbum
-            doc.text((track.album || '').substring(0, 30), xPos + 3, yPos + 6, { align: 'left', maxWidth: colWidths[3] - 6 });
-            xPos += colWidths[3];
-            doc.line(xPos, yPos, xPos, yPos + rowHeight);
-            
-            // Duración
-            doc.text(formattedDuration, xPos + colWidths[4] / 2, yPos + 6, { align: 'center' });
-            xPos += colWidths[4];
-            doc.line(xPos, yPos, xPos, yPos + rowHeight);
-            
-            // BPM
-            doc.text(track.bpm ? Math.round(track.bpm).toString() : 'N/A', xPos + colWidths[5] / 2, yPos + 6, { align: 'center' });
-            
-            yPos += rowHeight;
-        });
+            yPos += 15;
+        }
         
-        // Guardar PDF
-        doc.save(`canciones_${new Date().toISOString().split('T')[0]}.pdf`);
+        if (type === 'albums' || type === 'all') {
+            if (yPos > pageHeight - 40) addNewPage(title);
+            doc.setFontSize(16);
+            doc.setTextColor(29, 185, 84);
+            doc.setFont(undefined, 'bold');
+            doc.text('Top Álbumes', margin, yPos);
+            yPos += 10;
+            
+            const topAlbums = allMetrics.top_albums || [];
+            if (topAlbums.length > 0) {
+                const headers = ['#', 'Álbum', 'Artista', 'Canciones'];
+                const colWidths = [15, 80, 60, 25];
+                const startX = margin;
+                const rowHeight = 8;
+                
+                doc.setFillColor(29, 185, 84);
+                doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'bold');
+                let xPos = startX;
+                headers.forEach((header, i) => {
+                    doc.text(header, xPos + colWidths[i] / 2, yPos + 5, { align: 'center' });
+                    xPos += colWidths[i];
+                });
+                yPos += rowHeight;
+                
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'normal');
+                topAlbums.forEach((album, index) => {
+                    if (yPos + rowHeight > pageHeight - margin - 5) {
+                        addNewPage(title);
+                        doc.setFillColor(29, 185, 84);
+                        doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+                        doc.setTextColor(255, 255, 255);
+                        doc.setFontSize(9);
+                        doc.setFont(undefined, 'bold');
+                        xPos = startX;
+                        headers.forEach((header, i) => {
+                            doc.text(header, xPos + colWidths[i] / 2, yPos + 5, { align: 'center' });
+                            xPos += colWidths[i];
+                        });
+                        yPos += rowHeight;
+                    }
+                    
+                    doc.setFillColor(index % 2 === 0 ? 252 : 255, 252, 252);
+                    doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+                    doc.setTextColor(40, 40, 40);
+                    
+                    xPos = startX;
+                    doc.text((index + 1).toString(), xPos + 4, yPos + 5);
+                    xPos += colWidths[0];
+                    doc.text(album.name.substring(0, 35), xPos + 3, yPos + 5, { maxWidth: colWidths[1] - 6 });
+                    xPos += colWidths[1];
+                    doc.text(album.artist.substring(0, 25), xPos + 3, yPos + 5, { maxWidth: colWidths[2] - 6 });
+                    xPos += colWidths[2];
+                    doc.text(album.trackCount.toString(), xPos + colWidths[3] / 2, yPos + 5, { align: 'center' });
+                    yPos += rowHeight;
+                });
+            } else {
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('No hay datos de álbumes disponibles', margin, yPos);
+                yPos += 10;
+            }
+            yPos += 15;
+        }
+        
+        if (type === 'genres' || type === 'all') {
+            if (yPos > pageHeight - 40) addNewPage(title);
+            doc.setFontSize(16);
+            doc.setTextColor(29, 185, 84);
+            doc.setFont(undefined, 'bold');
+            doc.text('Géneros', margin, yPos);
+            yPos += 10;
+            
+            const genres = Object.entries(allMetrics.genre_distribution || {})
+                .sort(([,a], [,b]) => b - a);
+            
+            if (genres.length > 0) {
+                const headers = ['#', 'Género', 'Canciones'];
+                const colWidths = [15, 140, 25];
+                const startX = margin;
+                const rowHeight = 8;
+                
+                doc.setFillColor(29, 185, 84);
+                doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'bold');
+                let xPos = startX;
+                headers.forEach((header, i) => {
+                    doc.text(header, xPos + colWidths[i] / 2, yPos + 5, { align: 'center' });
+                    xPos += colWidths[i];
+                });
+                yPos += rowHeight;
+                
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'normal');
+                genres.forEach(([genre, count], index) => {
+                    if (yPos + rowHeight > pageHeight - margin - 5) {
+                        addNewPage(title);
+                        doc.setFillColor(29, 185, 84);
+                        doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+                        doc.setTextColor(255, 255, 255);
+                        doc.setFontSize(9);
+                        doc.setFont(undefined, 'bold');
+                        xPos = startX;
+                        headers.forEach((header, i) => {
+                            doc.text(header, xPos + colWidths[i] / 2, yPos + 5, { align: 'center' });
+                            xPos += colWidths[i];
+                        });
+                        yPos += rowHeight;
+                    }
+                    
+                    doc.setFillColor(index % 2 === 0 ? 252 : 255, 252, 252);
+                    doc.rect(startX, yPos, pageWidth - 2 * margin, rowHeight, 'F');
+                    doc.setTextColor(40, 40, 40);
+                    
+                    xPos = startX;
+                    doc.text((index + 1).toString(), xPos + 4, yPos + 5);
+                    xPos += colWidths[0];
+                    doc.text(genre.substring(0, 50), xPos + 3, yPos + 5, { maxWidth: colWidths[1] - 6 });
+                    xPos += colWidths[1];
+                    doc.text(count.toString(), xPos + colWidths[2] / 2, yPos + 5, { align: 'center' });
+                    yPos += rowHeight;
+                });
+            } else {
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('No hay datos de géneros disponibles', margin, yPos);
+            }
+        }
+        
+        const fileName = type === 'all' 
+            ? `metricas_completas_${new Date().toISOString().split('T')[0]}.pdf`
+            : `metricas_${type}_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
         showNotification('PDF exportado exitosamente', 'success');
     } catch (error) {
         console.error('Error exportando a PDF:', error);
         showNotification('Error al exportar PDF', 'error');
+    }
+}
+
+async function exportMetricsToCSVByType(type = 'artists') {
+    try {
+        if (!allMetrics) {
+            showNotification('No hay métricas disponibles', 'error');
+            return;
+        }
+        
+        let csvContent = '';
+        const dateStr = new Date().toISOString().split('T')[0];
+        
+        if (type === 'artists' || type === 'all') {
+            const topArtists = allMetrics.top_artists || [];
+            csvContent += 'Top Artistas\n';
+            csvContent += '#,Artista,Canciones,Duración Total,BPM Promedio\n';
+            topArtists.forEach((artist, index) => {
+                csvContent += `${index + 1},"${(artist.name || '').replace(/"/g, '""')}",${artist.trackCount || 0},"${artist.durationFormatted || 'N/A'}",${artist.avgBpm ? Math.round(artist.avgBpm) : 'N/A'}\n`;
+            });
+            csvContent += '\n';
+        }
+        
+        if (type === 'albums' || type === 'all') {
+            const topAlbums = allMetrics.top_albums || [];
+            csvContent += 'Top Álbumes\n';
+            csvContent += '#,Álbum,Artista,Canciones\n';
+            topAlbums.forEach((album, index) => {
+                csvContent += `${index + 1},"${(album.name || '').replace(/"/g, '""')}","${(album.artist || '').replace(/"/g, '""')}",${album.trackCount || 0}\n`;
+            });
+            csvContent += '\n';
+        }
+        
+        if (type === 'genres' || type === 'all') {
+            const genres = Object.entries(allMetrics.genre_distribution || {})
+                .sort(([,a], [,b]) => b - a);
+            csvContent += 'Géneros\n';
+            csvContent += '#,Género,Canciones\n';
+            genres.forEach(([genre, count], index) => {
+                csvContent += `${index + 1},"${genre.replace(/"/g, '""')}",${count}\n`;
+            });
+        }
+        
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        const fileName = type === 'all' 
+            ? `metricas_completas_${dateStr}.csv`
+            : `metricas_${type}_${dateStr}.csv`;
+        link.setAttribute('download', fileName);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showNotification('CSV exportado exitosamente', 'success');
+    } catch (error) {
+        console.error('Error exportando a CSV:', error);
+        showNotification('Error al exportar CSV', 'error');
     }
 }
 
