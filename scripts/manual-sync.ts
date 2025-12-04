@@ -123,8 +123,22 @@ async function searchAndSaveTrack(artistName: string, trackName?: string) {
     // 4. Procesar tracks
     console.log(`\n🔄 Procesando ${tracks.length} tracks...`);
     const tracksToSave: TrackData[] = [];
+    const normalizedArtistName = artist.name.toLowerCase().trim();
+    let validTracksCount = 0;
 
     for (const track of tracks) {
+      // Validar que el artista buscado sea el artista principal (primer artista)
+      if (!track.artists || track.artists.length === 0) {
+        console.warn(`   ⚠️  Track "${track.name}" sin artistas, omitiendo...`);
+        continue;
+      }
+      
+      const firstArtistName = track.artists[0].name.toLowerCase().trim();
+      if (firstArtistName !== normalizedArtistName) {
+        console.warn(`   ⚠️  Track "${track.name}" tiene como artista principal a "${track.artists[0].name}" (no "${artist.name}"), omitiendo...`);
+        continue;
+      }
+      
       const bpm = audioFeaturesMap.get(track.id) || null;
       const previewUrl = track.preview_url || null;
 
@@ -132,7 +146,7 @@ async function searchAndSaveTrack(artistName: string, trackName?: string) {
         spotify_id: track.id,
         name: track.name,
         artists: track.artists.map((a: any) => a.name),
-        artist_main: artistName,
+        artist_main: artist.name, // Usar el nombre del artista encontrado en Spotify, no el buscado
         album: track.album.name,
         release_date: track.album.release_date || null,
         duration_ms: track.duration_ms,
@@ -146,8 +160,13 @@ async function searchAndSaveTrack(artistName: string, trackName?: string) {
       };
 
       tracksToSave.push(trackData);
+      validTracksCount++;
 
       console.log(`   ${bpm ? `✅ ${track.name}: ${Math.round(bpm)} BPM` : `⚠️  ${track.name}: Sin BPM`}${previewUrl ? ' + preview' : ''}`);
+    }
+    
+    if (validTracksCount < tracks.length) {
+      console.warn(`\n⚠️  Se omitieron ${tracks.length - validTracksCount} tracks que no pertenecen al artista principal`);
     }
 
     // 5. Guardar en Supabase

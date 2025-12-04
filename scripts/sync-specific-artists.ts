@@ -6,32 +6,38 @@ import { TrackData } from '../src/types';
 dotenv.config();
 
 /**
- * Script para buscar y guardar más canciones de los artistas que ya están en la base de datos
- * 
- * Este script:
- * 1. Obtiene todos los artistas únicos de la base de datos
- * 2. Para cada artista, busca más canciones usando búsquedas amplias
- * 3. Guarda las nuevas canciones en Supabase (evita duplicados)
+ * Script para buscar más canciones de artistas específicos
+ * Busca canciones ampliamente y las guarda en Supabase
  * 
  * Uso:
- *   npm run sync-more-tracks
- *   npm run sync-more-tracks -- --tracks-per-artist 20
- *   npm run sync-more-tracks -- --skip-bpm
+ *   npm run sync-specific-artists
+ *   npm run sync-specific-artists -- --tracks-per-artist 30
+ *   npm run sync-specific-artists -- --with-bpm
  */
+
+// Artistas específicos a buscar
+const TARGET_ARTISTS = [
+  'Airbag',
+  'Duki',
+  'Nicki Nicole',
+  'Bizarrap',
+];
 
 interface SyncOptions {
   tracksPerArtist?: number;
   skipBPM?: boolean;
 }
 
-async function syncMoreTracks(options: SyncOptions = {}) {
+async function syncSpecificArtists(options: SyncOptions = {}) {
   const {
-    tracksPerArtist = 20, // Más canciones por defecto
+    tracksPerArtist = 30, // Más canciones por defecto para búsqueda amplia
     skipBPM = true, // Saltar BPM por defecto
   } = options;
 
-  console.log('🚀 Iniciando búsqueda de más canciones...');
+  console.log('🚀 Iniciando búsqueda de canciones para artistas específicos...');
   console.log(`📅 Timestamp: ${new Date().toISOString()}`);
+  console.log(`🎤 Artistas a procesar: ${TARGET_ARTISTS.length}`);
+  console.log(`   ${TARGET_ARTISTS.join(', ')}`);
   console.log(`📊 Canciones por artista: ${tracksPerArtist}`);
   console.log(`🎚️  BPM: ${skipBPM ? 'DESHABILITADO' : 'HABILITADO'}\n`);
 
@@ -46,22 +52,6 @@ async function syncMoreTracks(options: SyncOptions = {}) {
     console.warn('⚠️  No hay SPOTIFY_USER_TOKEN. Continuando sin BPM.\n');
   }
 
-  // 1. Obtener artistas de la base de datos
-  console.log('📋 Obteniendo artistas de la base de datos...');
-  let artists;
-  try {
-    artists = await supabase.getAllArtists();
-    console.log(`✅ Encontrados ${artists.length} artistas en la base de datos\n`);
-  } catch (error: any) {
-    console.error(`❌ Error obteniendo artistas: ${error.message}`);
-    process.exit(1);
-  }
-
-  if (artists.length === 0) {
-    console.warn('⚠️  No hay artistas en la base de datos. Ejecuta primero sync-dale-play o sync.');
-    process.exit(0);
-  }
-
   const allTracks: TrackData[] = [];
   const results = {
     success: [] as string[],
@@ -70,15 +60,15 @@ async function syncMoreTracks(options: SyncOptions = {}) {
     newTracks: 0,
   };
 
-  // 2. Para cada artista, buscar más canciones
-  for (let i = 0; i < artists.length; i++) {
-    const artistName = artists[i].name;
+  // Procesar cada artista
+  for (let i = 0; i < TARGET_ARTISTS.length; i++) {
+    const artistName = TARGET_ARTISTS[i];
     console.log(`\n${'='.repeat(80)}`);
-    console.log(`🎤 [${i + 1}/${artists.length}] Procesando: ${artistName}`);
+    console.log(`🎤 [${i + 1}/${TARGET_ARTISTS.length}] Procesando: ${artistName}`);
     console.log('='.repeat(80));
 
     try {
-      // Buscar artista en Spotify para obtener ID y géneros
+      // 1. Buscar artista en Spotify
       console.log(`🔍 Buscando artista en Spotify...`);
       const artist = await spotify.searchArtist(artistName);
       
@@ -90,24 +80,24 @@ async function syncMoreTracks(options: SyncOptions = {}) {
 
       console.log(`✅ Encontrado: ${artist.name} (ID: ${artist.id}, Popularidad: ${artist.popularity})`);
 
-      // Obtener información completa del artista
+      // 2. Obtener información completa del artista
       console.log(`📋 Obteniendo información del artista...`);
       const fullArtistInfo = await spotify.getArtist(artist.id);
       const artistGenres = fullArtistInfo.genres;
       console.log(`✅ Géneros: ${artistGenres.length > 0 ? artistGenres.join(', ') : 'ninguno'}`);
 
-      // Buscar tracks usando búsqueda amplia (más canciones que solo top tracks)
-      console.log(`🎵 Buscando tracks de ${artistName}...`);
+      // 3. Buscar tracks usando búsqueda amplia
+      console.log(`🎵 Buscando tracks de ${artist.name}...`);
       const tracksFound = await searchTracksByArtist(spotify, artist.name, tracksPerArtist);
       console.log(`✅ Encontrados ${tracksFound.length} tracks`);
 
       if (tracksFound.length === 0) {
-        console.warn(`⚠️  No se encontraron tracks para ${artistName}`);
-        results.failed.push(artistName);
+        console.warn(`⚠️  No se encontraron tracks para ${artist.name}`);
+        results.failed.push(artist.name);
         continue;
       }
 
-      // Obtener BPM (opcional)
+      // 4. Obtener BPM (opcional)
       const trackIds = tracksFound.map((t) => t.id);
       let audioFeaturesMap = new Map<string, number>();
       
@@ -127,7 +117,7 @@ async function syncMoreTracks(options: SyncOptions = {}) {
         }
       }
 
-      // Procesar tracks
+      // 5. Procesar tracks
       console.log(`🔄 Procesando ${tracksFound.length} tracks...`);
       const normalizedArtistName = artist.name.toLowerCase().trim();
       let validTracksCount = 0;
@@ -152,7 +142,7 @@ async function syncMoreTracks(options: SyncOptions = {}) {
           spotify_id: track.id,
           name: track.name,
           artists: track.artists.map((a: any) => a.name),
-          artist_main: artist.name, // Usar el nombre del artista encontrado en Spotify, no el buscado
+          artist_main: artist.name, // Usar el nombre del artista encontrado en Spotify
           album: track.album.name,
           release_date: track.album.release_date || null,
           duration_ms: track.duration_ms,
@@ -178,7 +168,7 @@ async function syncMoreTracks(options: SyncOptions = {}) {
       results.totalTracks += validTracksCount;
 
       // Pausa para evitar rate limits
-      if (i < artists.length - 1) {
+      if (i < TARGET_ARTISTS.length - 1) {
         console.log(`⏳ Esperando 1 segundo antes del siguiente artista...`);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
@@ -190,7 +180,7 @@ async function syncMoreTracks(options: SyncOptions = {}) {
     }
   }
 
-  // 3. Guardar todo en Supabase
+  // 6. Guardar todo en Supabase
   if (allTracks.length > 0) {
     console.log(`\n${'='.repeat(80)}`);
     console.log(`💾 Guardando ${allTracks.length} tracks en Supabase...`);
@@ -208,7 +198,7 @@ async function syncMoreTracks(options: SyncOptions = {}) {
     console.warn(`\n⚠️  No hay tracks para guardar`);
   }
 
-  // 4. Resumen
+  // 7. Resumen
   console.log(`\n${'='.repeat(80)}`);
   console.log(`📊 RESUMEN`);
   console.log('='.repeat(80));
@@ -223,6 +213,7 @@ async function syncMoreTracks(options: SyncOptions = {}) {
   console.log(`📦 Total tracks procesados: ${results.totalTracks}`);
   console.log(`🆕 Tracks nuevos guardados: ${results.newTracks}`);
   console.log(`\n✅ Proceso completado!`);
+  console.log(`\n💡 Próximo paso: Ejecuta 'npm run verify-label' para verificar qué canciones son de Dale Play Records`);
 }
 
 /**
@@ -337,7 +328,7 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-syncMoreTracks(options).catch((error) => {
+syncSpecificArtists(options).catch((error) => {
   console.error('\n❌ Error fatal:', error);
   process.exit(1);
 });

@@ -73,15 +73,19 @@ export class SyncService {
 
         // 5. Procesar cada track
         console.log(`   🔄 Procesando ${tracks.length} tracks...`);
-        let skippedTracks = 0;
+        const normalizedArtistName = artist.name.toLowerCase().trim();
+        let validTracksCount = 0;
+        
         for (const track of tracks) {
-          // Verificar que el artista buscado esté en la lista de artistas del track
-          const trackArtists = track.artists.map((a) => a.name.toLowerCase().trim());
-          const searchArtistName = artistName.toLowerCase().trim();
+          // Validar que el artista buscado sea el artista principal (primer artista)
+          if (!track.artists || track.artists.length === 0) {
+            console.warn(`     ⚠️  Track "${track.name}" sin artistas, omitiendo...`);
+            continue;
+          }
           
-          if (!trackArtists.includes(searchArtistName)) {
-            console.log(`     ⚠️  Omitiendo "${track.name}": el artista "${artistName}" no está en la lista de artistas (${track.artists.map((a: any) => a.name).join(', ')})`);
-            skippedTracks++;
+          const firstArtistName = track.artists[0].name.toLowerCase().trim();
+          if (firstArtistName !== normalizedArtistName) {
+            console.warn(`     ⚠️  Track "${track.name}" tiene como artista principal a "${track.artists[0].name}" (no "${artist.name}"), omitiendo...`);
             continue;
           }
           
@@ -92,7 +96,7 @@ export class SyncService {
             spotify_id: track.id,
             name: track.name,
             artists: track.artists.map((a) => a.name),
-            artist_main: artistName,
+            artist_main: artist.name, // Usar el nombre del artista encontrado en Spotify, no el buscado
             album: track.album.name,
             release_date: track.album.release_date || null,
             duration_ms: track.duration_ms,
@@ -106,6 +110,7 @@ export class SyncService {
           };
 
           allTracks.push(trackData);
+          validTracksCount++;
           
           // Log para debugging
           if (bpm) {
@@ -115,11 +120,11 @@ export class SyncService {
           }
         }
         
-        if (skippedTracks > 0) {
-          console.log(`   ⚠️  ${skippedTracks} tracks omitidos porque "${artistName}" no es artista principal`);
+        if (validTracksCount < tracks.length) {
+          console.warn(`   ⚠️  Se omitieron ${tracks.length - validTracksCount} tracks que no pertenecen al artista principal`);
         }
 
-        console.log(`   ✅ ${tracks.length} tracks procesados para ${artistName}`);
+        console.log(`   ✅ ${validTracksCount} tracks válidos procesados para ${artist.name} (de ${tracks.length} encontrados)`);
 
         // Pequeña pausa para evitar rate limits
         await this.sleep(500);

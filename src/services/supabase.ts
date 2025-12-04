@@ -271,37 +271,48 @@ export class SupabaseService {
 
   /**
    * Obtiene tracks de un artista específico
-   * Filtra por artist_main y también verifica que el artista esté en la lista de artists
+   * Hace comparación case-insensitive y normaliza espacios para evitar problemas
    */
   async getTracksByArtist(artistName: string): Promise<any[]> {
     try {
+      // Normalizar el nombre del artista para comparación
+      const normalizeName = (name: string) => {
+        return name.toLowerCase().trim();
+      };
+      
+      const normalizedSearchName = normalizeName(artistName);
+      
+      // Obtener todos los tracks y filtrar en JavaScript para hacer comparación case-insensitive
+      // Esto es necesario porque algunos tracks pueden tener el artista_main con diferentes mayúsculas/minúsculas
       const { data, error } = await this.client
         .from('artist_tracks')
         .select('*')
-        .eq('artist_main', artistName)
         .order('fetched_at', { ascending: false });
 
       if (error) {
         throw error;
       }
 
-      // Filtrar adicionalmente para asegurar que el artista esté en la lista de artists
-      // Esto previene que se muestren canciones donde el artista solo es colaborador
+      // Filtrar tracks donde el artist_main coincida (case-insensitive)
+      // También verificar que el artista principal del track (primer artista en el array) coincida
       const filteredTracks = (data || []).filter((track: any) => {
-        // Verificar que artist_main coincida exactamente
-        if (track.artist_main !== artistName) {
+        if (!track.artist_main) {
           return false;
         }
         
-        // Verificar que el artista esté en la lista de artists del track
-        if (track.artists && Array.isArray(track.artists)) {
-          const trackArtists = track.artists.map((a: string) => a.toLowerCase().trim());
-          const searchName = artistName.toLowerCase().trim();
-          return trackArtists.includes(searchName);
+        // Comparar artist_main normalizado
+        const normalizedMain = normalizeName(track.artist_main);
+        if (normalizedMain === normalizedSearchName) {
+          // Verificación adicional: el artista principal del track debe ser el buscado
+          // Esto previene casos donde artist_main está mal asignado
+          if (track.artists && Array.isArray(track.artists) && track.artists.length > 0) {
+            const firstArtist = normalizeName(track.artists[0]);
+            return firstArtist === normalizedSearchName;
+          }
+          return true; // Si no hay array de artists, confiar en artist_main
         }
         
-        // Si no hay lista de artists, confiar en artist_main
-        return true;
+        return false;
       });
 
       return filteredTracks;

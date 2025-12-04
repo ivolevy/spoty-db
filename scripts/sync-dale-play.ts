@@ -131,15 +131,19 @@ async function syncDalePlayArtists(options: SyncOptions = {}) {
 
       // 5. Procesar tracks
       console.log(`🔄 Procesando ${tracks.length} tracks...`);
-      let skippedTracks = 0;
+      const normalizedArtistName = artist.name.toLowerCase().trim();
+      let validTracksCount = 0;
+      
       for (const track of tracks) {
-        // Verificar que el artista buscado esté en la lista de artistas del track
-        const trackArtists = track.artists.map((a: any) => a.name.toLowerCase().trim());
-        const searchArtistName = artistName.toLowerCase().trim();
+        // Validar que el artista buscado sea el artista principal (primer artista)
+        if (!track.artists || track.artists.length === 0) {
+          console.warn(`   ⚠️  Track "${track.name}" sin artistas, omitiendo...`);
+          continue;
+        }
         
-        if (!trackArtists.includes(searchArtistName)) {
-          console.log(`     ⚠️  Omitiendo "${track.name}": el artista "${artistName}" no está en la lista de artistas (${track.artists.map((a: any) => a.name).join(', ')})`);
-          skippedTracks++;
+        const firstArtistName = track.artists[0].name.toLowerCase().trim();
+        if (firstArtistName !== normalizedArtistName) {
+          console.warn(`   ⚠️  Track "${track.name}" tiene como artista principal a "${track.artists[0].name}" (no "${artist.name}"), omitiendo...`);
           continue;
         }
         
@@ -150,7 +154,7 @@ async function syncDalePlayArtists(options: SyncOptions = {}) {
           spotify_id: track.id,
           name: track.name,
           artists: track.artists.map((a: any) => a.name),
-          artist_main: artistName,
+          artist_main: artist.name, // Usar el nombre del artista encontrado en Spotify, no el buscado
           album: track.album.name,
           release_date: track.album.release_date || null,
           duration_ms: track.duration_ms,
@@ -164,15 +168,16 @@ async function syncDalePlayArtists(options: SyncOptions = {}) {
         };
 
         allTracks.push(trackData);
+        validTracksCount++;
       }
       
-      if (skippedTracks > 0) {
-        console.log(`   ⚠️  ${skippedTracks} tracks omitidos porque "${artistName}" no es artista principal`);
+      if (validTracksCount < tracks.length) {
+        console.warn(`   ⚠️  Se omitieron ${tracks.length - validTracksCount} tracks que no pertenecen al artista principal`);
       }
 
-      console.log(`✅ ${tracks.length} tracks procesados para ${artistName}`);
-      results.success.push(artistName);
-      results.totalTracks += tracks.length;
+      console.log(`✅ ${validTracksCount} tracks válidos procesados para ${artist.name} (de ${tracks.length} encontrados)`);
+      results.success.push(artist.name);
+      results.totalTracks += validTracksCount;
 
       // Pausa para evitar rate limits
       if (i < artists.length - 1) {
