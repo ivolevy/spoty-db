@@ -476,6 +476,41 @@ body {
     margin-bottom: 2rem;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.metrics-filter-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.metric-filter-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    font-weight: 500;
+}
+
+.metric-filter-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--green);
+}
+
+.metric-filter-btn.active {
+    background: var(--green);
+    color: var(--bg-dark);
+    border-color: var(--green);
+}
+
+.metric-filter-btn.active:hover {
+    background: var(--green-hover);
 }
 
 .export-buttons {
@@ -506,23 +541,6 @@ body {
 .export-btn svg {
     width: 16px;
     height: 16px;
-}
-
-.filter-select {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-}
-
-.filter-select:focus {
-    outline: none;
-    border-color: var(--green);
 }
 
 .metrics-content {

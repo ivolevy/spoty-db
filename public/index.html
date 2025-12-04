@@ -82,13 +82,11 @@
                 <!-- Metrics Tab -->
                 <div class="tab-content" id="metricsTab">
                     <div class="metrics-filters">
-                        <select id="metricsFilter" class="filter-select">
-                            <option value="all">Todas las métricas</option>
-                            <option value="artists">Top Artistas</option>
-                            <option value="albums">Top Álbumes</option>
-                            <option value="genres">Géneros</option>
-                            <option value="bpm">BPM</option>
-                        </select>
+                        <div class="metrics-filter-buttons">
+                            <button class="metric-filter-btn active" data-filter="artists">Top Artistas</button>
+                            <button class="metric-filter-btn active" data-filter="albums">Top Álbumes</button>
+                            <button class="metric-filter-btn active" data-filter="genres">Géneros</button>
+                        </div>
                         <div class="export-buttons">
                             <button class="export-btn" onclick="exportToPDF()">
                                 <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">

@@ -36,11 +36,19 @@ export async function getAllTracks(req: Request, res: Response) {
 /**
  * GET /tracks/:id
  * Devuelve info detallada del track
+ * El id puede ser el ID de la base de datos o el spotify_id
  */
 export async function getTrackById(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const track = await supabase.getTrackById(id);
+    
+    // Intentar primero buscar por spotify_id (más común desde el frontend)
+    let track = await supabase.getTrackBySpotifyId(id);
+    
+    // Si no se encuentra por spotify_id, intentar por ID de base de datos
+    if (!track) {
+      track = await supabase.getTrackById(id);
+    }
 
     if (!track) {
       return res.status(404).json({ error: 'Track no encontrado' });

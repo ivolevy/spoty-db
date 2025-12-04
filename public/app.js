@@ -853,22 +853,21 @@ function renderMetrics() {
         return;
     }
     
-    const filter = document.getElementById('metricsFilter')?.value || 'all';
-    const limitNum = Infinity; // Mostrar todos sin límite
+    // Obtener qué filtros están activos
+    const activeFilters = Array.from(document.querySelectorAll('.metric-filter-btn.active'))
+        .map(btn => btn.dataset.filter);
     
+    const limitNum = Infinity; // Mostrar todos sin límite
     const metricsContainer = document.getElementById('metricsContainer');
     let html = '';
     
-    // NO mostrar summary cards aquí - ya están en statsSummary arriba
+    // Siempre mostrar las tres secciones inline
+    html += `<div class="metrics-inline-container">`;
     
-    // Top Artists y Top Albums - mostrar inline cuando filter es 'all'
-    if (filter === 'all') {
+    // Top Artists - solo si está activo
+    if (activeFilters.includes('artists')) {
         const topArtists = (allMetrics.top_artists || []).slice(0, limitNum);
-        const topAlbums = (allMetrics.top_albums || []).slice(0, limitNum);
         
-        html += `<div class="metrics-inline-container">`;
-        
-        // Top Artists
         if (topArtists.length > 0) {
             const maxTracks = topArtists[0].trackCount || 1;
             html += `
@@ -907,8 +906,12 @@ function renderMetrics() {
                 </div>
             `;
         }
+    }
+    
+    // Top Albums - solo si está activo
+    if (activeFilters.includes('albums')) {
+        const topAlbums = (allMetrics.top_albums || []).slice(0, limitNum);
         
-        // Top Albums
         if (topAlbums.length > 0) {
             html += `
                 <div class="metric-section metric-section-inline">
@@ -936,88 +939,12 @@ function renderMetrics() {
                 </div>
             `;
         }
-        
-        html += `</div>`;
-    } else {
-        // Top Artists solo
-        if (filter === 'artists') {
-            const topArtists = (allMetrics.top_artists || []).slice(0, limitNum);
-            
-            if (topArtists.length > 0) {
-                const maxTracks = topArtists[0].trackCount || 1;
-                html += `
-                    <div class="metric-section">
-                        <div class="metric-title">Top Artistas</div>
-                        <div class="top-artists-list">
-                            ${topArtists.map((artist, index) => {
-                                const percentage = (artist.trackCount / maxTracks) * 100;
-                                    return `
-                                        <div class="top-artist-item" onclick="showArtistDetail('${escapeHtml(artist.name).replace(/'/g, "\\'")}')">
-                                            <div class="top-artist-rank">${index + 1}</div>
-                                            <div class="top-artist-info">
-                                                <div class="top-artist-name">${escapeHtml(artist.name)}</div>
-                                                <div class="top-artist-meta">
-                                                    <span>${artist.durationFormatted}</span>
-                                                    <span>•</span>
-                                                    <span>${artist.trackCount} canciones</span>
-                                                </div>
-                                            </div>
-                                            <div class="top-artist-bar">
-                                                <div class="top-artist-bar-fill" style="width: ${percentage}%"></div>
-                                            </div>
-                                        </div>
-                                    `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div class="metric-section">
-                        <div class="metric-title">Top Artistas</div>
-                        <div class="empty-state">
-                            <p>No hay artistas disponibles. Ejecuta la sincronización para cargar datos.</p>
-                        </div>
-                    </div>
-                `;
-            }
-        }
-        
-        // Top Albums solo
-        if (filter === 'albums') {
-            const topAlbums = (allMetrics.top_albums || []).slice(0, limitNum);
-            
-            if (topAlbums.length > 0) {
-                html += `
-                    <div class="metric-section">
-                        <div class="metric-title">Top Álbumes</div>
-                        <div class="top-albums-list">
-                            ${topAlbums.map(album => `
-                                <div class="top-album-item">
-                                    ${album.cover ? `<img src="${album.cover}" alt="${escapeHtml(album.name)}" class="top-album-cover">` : '<div class="top-album-cover"></div>'}
-                                    <div class="top-album-name">${escapeHtml(album.name)}</div>
-                                    <div class="top-album-artist">${escapeHtml(album.artist)}</div>
-                                    <div class="top-album-tracks">${album.trackCount} canciones</div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div class="metric-section">
-                        <div class="metric-title">Top Álbumes</div>
-                        <div class="empty-state">
-                            <p>No hay álbumes disponibles. Ejecuta la sincronización para cargar datos.</p>
-                        </div>
-                    </div>
-                `;
-            }
-        }
     }
     
-    // Genres
-    if (filter === 'all' || filter === 'genres') {
+    html += `</div>`;
+    
+    // Genres - solo si está activo
+    if (activeFilters.includes('genres')) {
         const genres = Object.entries(allMetrics.genre_distribution || {})
             .sort(([,a], [,b]) => b - a)
             .slice(0, limitNum);
@@ -1047,31 +974,7 @@ function renderMetrics() {
         }
     }
     
-    // BPM by Artist
-    if (filter === 'all' || filter === 'bpm') {
-        const bpmArtists = Object.entries(allMetrics.avg_bpm_by_artist || {})
-            .map(([artist, bpm]) => ({ artist, bpm }))
-            .sort((a, b) => b.bpm - a.bpm)
-            .slice(0, limitNum);
-        
-        if (bpmArtists.length > 0) {
-            html += `
-                <div class="metric-section">
-                    <div class="metric-title">BPM Promedio por Artista</div>
-                    <div class="bpm-list">
-                        ${bpmArtists.map(({ artist, bpm }) => `
-                            <div class="bpm-item">
-                                <span class="bpm-artist">${escapeHtml(artist)}</span>
-                                <span class="bpm-value">${Math.round(bpm)} BPM</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-    }
-    
-    // Verificar si hay contenido después de las summary cards
+    // Verificar si hay contenido
     const hasContent = html.includes('metric-section');
     
     if (!hasContent && allMetrics.total_tracks === 0) {
@@ -1086,8 +989,13 @@ function renderMetrics() {
     console.log('Top albums:', allMetrics.top_albums?.length || 0);
 }
 
-// Filter change handlers
-document.getElementById('metricsFilter')?.addEventListener('change', renderMetrics);
+// Filter button handlers - toggle active state and re-render
+document.querySelectorAll('.metric-filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        this.classList.toggle('active');
+        renderMetrics();
+    });
+});
 
 // Export functions
 async function exportToPDF() {
