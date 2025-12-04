@@ -853,25 +853,21 @@ function renderMetrics() {
         return;
     }
     
-    // Obtener qué filtros están activos
-    const activeFilters = Array.from(document.querySelectorAll('.metric-filter-btn.active'))
-        .map(btn => btn.dataset.filter);
+    // Obtener la pestaña activa
+    const activeTab = document.querySelector('.metric-tab-btn.active')?.dataset.tab || 'artists';
     
     const limitNum = Infinity; // Mostrar todos sin límite
     const metricsContainer = document.getElementById('metricsContainer');
     let html = '';
     
-    // Siempre mostrar las tres secciones inline
-    html += `<div class="metrics-inline-container">`;
-    
-    // Top Artists - solo si está activo
-    if (activeFilters.includes('artists')) {
+    // Mostrar solo la sección de la pestaña activa
+    if (activeTab === 'artists') {
         const topArtists = (allMetrics.top_artists || []).slice(0, limitNum);
         
         if (topArtists.length > 0) {
             const maxTracks = topArtists[0].trackCount || 1;
             html += `
-                <div class="metric-section metric-section-inline">
+                <div class="metric-section">
                     <div class="metric-title">Top Artistas</div>
                     <div class="top-artists-list">
                         ${topArtists.map((artist, index) => {
@@ -898,7 +894,7 @@ function renderMetrics() {
             `;
         } else {
             html += `
-                <div class="metric-section metric-section-inline">
+                <div class="metric-section">
                     <div class="metric-title">Top Artistas</div>
                     <div class="empty-state">
                         <p>No hay artistas disponibles. Ejecuta la sincronización para cargar datos.</p>
@@ -906,15 +902,12 @@ function renderMetrics() {
                 </div>
             `;
         }
-    }
-    
-    // Top Albums - solo si está activo
-    if (activeFilters.includes('albums')) {
+    } else if (activeTab === 'albums') {
         const topAlbums = (allMetrics.top_albums || []).slice(0, limitNum);
         
         if (topAlbums.length > 0) {
             html += `
-                <div class="metric-section metric-section-inline">
+                <div class="metric-section">
                     <div class="metric-title">Top Álbumes</div>
                     <div class="top-albums-list">
                         ${topAlbums.map(album => `
@@ -931,7 +924,7 @@ function renderMetrics() {
             `;
         } else {
             html += `
-                <div class="metric-section metric-section-inline">
+                <div class="metric-section">
                     <div class="metric-title">Top Álbumes</div>
                     <div class="empty-state">
                         <p>No hay álbumes disponibles. Ejecuta la sincronización para cargar datos.</p>
@@ -939,12 +932,7 @@ function renderMetrics() {
                 </div>
             `;
         }
-    }
-    
-    html += `</div>`;
-    
-    // Genres - solo si está activo
-    if (activeFilters.includes('genres')) {
+    } else if (activeTab === 'genres') {
         const genres = Object.entries(allMetrics.genre_distribution || {})
             .sort(([,a], [,b]) => b - a)
             .slice(0, limitNum);
@@ -989,10 +977,14 @@ function renderMetrics() {
     console.log('Top albums:', allMetrics.top_albums?.length || 0);
 }
 
-// Filter button handlers - toggle active state and re-render
-document.querySelectorAll('.metric-filter-btn').forEach(btn => {
+// Metric tab handlers - switch between tabs
+document.querySelectorAll('.metric-tab-btn').forEach(btn => {
     btn.addEventListener('click', function() {
-        this.classList.toggle('active');
+        // Remove active class from all tabs
+        document.querySelectorAll('.metric-tab-btn').forEach(b => b.classList.remove('active'));
+        // Add active class to clicked tab
+        this.classList.add('active');
+        // Re-render metrics
         renderMetrics();
     });
 });
